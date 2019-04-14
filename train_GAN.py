@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 import utility as Utility
 import argparse
-from model_GAN import SIMGAN as Model
+from model_GAN import SPIGAN as Model
 from make_datasets import Make_datasets_gyoza as Make_datasets
 import time
 
