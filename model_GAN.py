@@ -203,14 +203,15 @@ class SPIGAN2():
 
 
 class SPIGAN():
-    def __init__(self, noise_unit_num, img_channel, anno_channel, seed, base_channel, keep_prob, base_fc_node=1024):
+    def __init__(self, noise_unit_num, img_channel, anno_channel, seed, base_channel, keep_prob, base_fc_node=1024,
+                 base_channel_predictor=16):
         self.NOISE_UNIT_NUM = noise_unit_num  # 200
         self.IMG_CHANNEL = img_channel  # 3
         self.ANNO_CHANNEL = anno_channel # 4
         self.SEED = seed
         np.random.seed(seed=self.SEED)
         self.BASE_CHANNEL = base_channel  # 32
-        self.BASE_CHANNEL_PRE = 16
+        self.BASE_CHANNEL_PRE = base_channel_predictor
         self.KEEP_PROB = keep_prob
         self.BASE_FC_NODE = base_fc_node
 
