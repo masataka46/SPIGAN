@@ -6,7 +6,7 @@ import tensorflow as tf
 # import argparse
 import math
 
-class SPIGAN1():
+class SPIGAN2():
     def __init__(self, noise_unit_num, img_channel, seed, base_channel, keep_prob):
         self.NOISE_UNIT_NUM = noise_unit_num  # 200
         self.IMG_CHANNEL = img_channel  # 3
@@ -202,7 +202,7 @@ class SPIGAN1():
         return self.dropy1, self.sigmoid
 
 
-class SIMGAN():
+class SPIGAN():
     def __init__(self, noise_unit_num, img_channel, anno_channel, seed, base_channel, keep_prob, base_fc_node=1024):
         self.NOISE_UNIT_NUM = noise_unit_num  # 200
         self.IMG_CHANNEL = img_channel  # 3
@@ -210,6 +210,7 @@ class SIMGAN():
         self.SEED = seed
         np.random.seed(seed=self.SEED)
         self.BASE_CHANNEL = base_channel  # 32
+        self.BASE_CHANNEL_PRE = 16
         self.KEEP_PROB = keep_prob
         self.BASE_FC_NODE = base_fc_node
 
@@ -228,6 +229,11 @@ class SIMGAN():
         b = tf.get_variable('b', [out_channel], initializer=tf.constant_initializer(0.0))
         conv = tf.nn.conv2d(input, w, strides=[1, stride, stride, 1], padding="SAME", name='conv') + b
         return conv
+
+    def max_pool(self, input, k_size, stride):
+        pool = tf.nn.max_pool(input, [1, k_size, k_size, 1], strides=[1, stride, stride, 1],
+                              padding="SAME", name='pool')
+        return pool
 
     def conv2d_transpose(self, input, in_channel, out_channel, k_size, stride, seed):
         # print("input, ", input.get_shape().as_list())
@@ -361,10 +367,165 @@ class SIMGAN():
 
         return self.sigmoid
 
+
+    def task_predictor(self, x, reuse=False, is_training=True, keep_prob=1.0):  # x[n, 128, 128, 3]
+        with tf.variable_scope('task_predictor', reuse=reuse):
+            with tf.variable_scope("layer1"):  # layer 1
+                conv1 = self.conv2d(x, self.IMG_CHANNEL, self.BASE_CHANNEL_PRE, 3, 1, self.SEED)
+                re1 = tf.nn.relu(conv1)
+                conv2 = self.conv2d(re1, self.BASE_CHANNEL_PRE, self.BASE_CHANNEL_PRE, 3, 1, self.SEED)
+                re2 = tf.nn.relu(conv2)
+                pool2 = self.max_pool(re2, 2, 2)
+
+            with tf.variable_scope("layer2"):  # layer 2
+                conv3 = self.conv2d(pool2, self.BASE_CHANNEL_PRE, self.BASE_CHANNEL_PRE*2, 3, 1, self.SEED)
+                re3 = tf.nn.relu(conv3)
+                conv4 = self.conv2d(re3, self.BASE_CHANNEL_PRE*2, self.BASE_CHANNEL_PRE*2, 3, 1, self.SEED)
+                re4 = tf.nn.relu(conv4)
+                pool4 = self.max_pool(re4, 2, 2)
+
+            with tf.variable_scope("layer3"):  # layer 3
+                conv5 = self.conv2d(pool4, self.BASE_CHANNEL_PRE*2, self.BASE_CHANNEL_PRE*4, 3, 1, self.SEED)
+                re5 = tf.nn.relu(conv5)
+                conv6 = self.conv2d(re5, self.BASE_CHANNEL_PRE*4, self.BASE_CHANNEL_PRE*4, 3, 1, self.SEED)
+                re6 = tf.nn.relu(conv6)
+                conv7 = self.conv2d(re6, self.BASE_CHANNEL_PRE*4, self.BASE_CHANNEL_PRE*4, 3, 1, self.SEED)
+                re7 = tf.nn.relu(conv7)
+                pool7 = self.max_pool(re7, 2, 2)
+
+            with tf.variable_scope("layer4"):  # layer 4
+                conv8 = self.conv2d(pool7, self.BASE_CHANNEL_PRE*4, self.BASE_CHANNEL_PRE*8, 3, 1, self.SEED)
+                re8 = tf.nn.relu(conv8)
+                conv9 = self.conv2d(re8, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 1, self.SEED)
+                re9 = tf.nn.relu(conv9)
+                conv10 = self.conv2d(re9, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 1, self.SEED)
+                re10 = tf.nn.relu(conv10)
+                pool10 = self.max_pool(re10, 2, 2)
+
+            with tf.variable_scope("layer5"):  # layer 5
+                conv11 = self.conv2d(pool10, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 1, self.SEED)
+                re11 = tf.nn.relu(conv11)
+                conv12 = self.conv2d(re11, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 1, self.SEED)
+                re12 = tf.nn.relu(conv12)
+                conv13 = self.conv2d(re12, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 1, self.SEED)
+                re13 = tf.nn.relu(conv13)
+                pool13 = self.max_pool(re13, 2, 2)
+
+            with tf.variable_scope("layer6"):  # layer 6
+                conv14 = self.conv2d(pool13, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 1, 1, self.SEED)
+                re14 = tf.nn.relu(conv14)
+                drop14 = tf.nn.dropout(re14, keep_prob=keep_prob)
+                conv15 = self.conv2d(drop14, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 1, 1, self.SEED)
+                re15 = tf.nn.relu(conv15)
+                drop15 = tf.nn.dropout(re15, keep_prob=keep_prob)
+
+            with tf.variable_scope("layer7"):  # layer 7
+                conv16 = self.conv2d(drop15, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 1, 1, self.SEED)
+                re16 = tf.nn.relu(conv16)
+                deconv1 = self.conv2d_transpose(re16, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 2, self.SEED)
+                re_d1 = tf.nn.relu(deconv1)
+                add1 = pool10  + re_d1
+
+            with tf.variable_scope("layer8"):  # layer 8
+                conv_d1 = self.conv2d(add1, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*8, 3, 3, self.SEED)
+                re_d1 = tf.nn.relu(conv_d1)
+                deconv2 = self.conv2d_transpose(re_d1, self.BASE_CHANNEL_PRE*8, self.BASE_CHANNEL_PRE*4, 3, 2, self.SEED)
+                re_d2 = tf.nn.relu(deconv2)
+                add2 = pool7  + re_d2
+
+            with tf.variable_scope("layer9"):  # layer 9
+                conv_d2 = self.conv2d(add2, self.BASE_CHANNEL_PRE*4, self.BASE_CHANNEL_PRE*4, 4, 4, self.SEED)
+                re_d2 = tf.nn.relu(conv_d2)
+                deconv3 = self.conv2d_transpose(re_d2, self.BASE_CHANNEL_PRE*4, self.BASE_CHANNEL_PRE, 8, 8, self.SEED)
+                re_d3 = tf.nn.relu(deconv3)
+                conv_d3 = self.conv2d(re_d3, self.BASE_CHANNEL_PRE, self.IMG_CHANNEL, 4, 4, self.SEED)
+                softmax_d3 = tf.nn.softmax(conv_d3)
+
+        return softmax_d3
+
+    def privileged_network(self, x, reuse=False, is_training=True, keep_prob=1.0):  # x[n, 128, 128, 3]
+        with tf.variable_scope('task_predictor', reuse=reuse):
+            with tf.variable_scope("layer1"):  # layer 1
+                conv1 = self.conv2d(x, self.IMG_CHANNEL, self.BASE_CHANNEL_PRE, 3, 1, self.SEED)
+                re1 = tf.nn.relu(conv1)
+                conv2 = self.conv2d(re1, self.BASE_CHANNEL_PRE, self.BASE_CHANNEL_PRE, 3, 1, self.SEED)
+                re2 = tf.nn.relu(conv2)
+                pool2 = self.max_pool(re2, 2, 2)
+
+            with tf.variable_scope("layer2"):  # layer 2
+                conv3 = self.conv2d(pool2, self.BASE_CHANNEL_PRE, self.BASE_CHANNEL_PRE * 2, 3, 1, self.SEED)
+                re3 = tf.nn.relu(conv3)
+                conv4 = self.conv2d(re3, self.BASE_CHANNEL_PRE * 2, self.BASE_CHANNEL_PRE * 2, 3, 1, self.SEED)
+                re4 = tf.nn.relu(conv4)
+                pool4 = self.max_pool(re4, 2, 2)
+
+            with tf.variable_scope("layer3"):  # layer 3
+                conv5 = self.conv2d(pool4, self.BASE_CHANNEL_PRE * 2, self.BASE_CHANNEL_PRE * 4, 3, 1, self.SEED)
+                re5 = tf.nn.relu(conv5)
+                conv6 = self.conv2d(re5, self.BASE_CHANNEL_PRE * 4, self.BASE_CHANNEL_PRE * 4, 3, 1, self.SEED)
+                re6 = tf.nn.relu(conv6)
+                conv7 = self.conv2d(re6, self.BASE_CHANNEL_PRE * 4, self.BASE_CHANNEL_PRE * 4, 3, 1, self.SEED)
+                re7 = tf.nn.relu(conv7)
+                pool7 = self.max_pool(re7, 2, 2)
+
+            with tf.variable_scope("layer4"):  # layer 4
+                conv8 = self.conv2d(pool7, self.BASE_CHANNEL_PRE * 4, self.BASE_CHANNEL_PRE * 8, 3, 1, self.SEED)
+                re8 = tf.nn.relu(conv8)
+                conv9 = self.conv2d(re8, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 1, self.SEED)
+                re9 = tf.nn.relu(conv9)
+                conv10 = self.conv2d(re9, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 1, self.SEED)
+                re10 = tf.nn.relu(conv10)
+                pool10 = self.max_pool(re10, 2, 2)
+
+            with tf.variable_scope("layer5"):  # layer 5
+                conv11 = self.conv2d(pool10, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 1, self.SEED)
+                re11 = tf.nn.relu(conv11)
+                conv12 = self.conv2d(re11, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 1, self.SEED)
+                re12 = tf.nn.relu(conv12)
+                conv13 = self.conv2d(re12, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 1, self.SEED)
+                re13 = tf.nn.relu(conv13)
+                pool13 = self.max_pool(re13, 2, 2)
+
+            with tf.variable_scope("layer6"):  # layer 6
+                conv14 = self.conv2d(pool13, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 1, 1, self.SEED)
+                re14 = tf.nn.relu(conv14)
+                drop14 = tf.nn.dropout(re14, keep_prob=keep_prob)
+                conv15 = self.conv2d(drop14, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 1, 1, self.SEED)
+                re15 = tf.nn.relu(conv15)
+                drop15 = tf.nn.dropout(re15, keep_prob=keep_prob)
+
+            with tf.variable_scope("layer7"):  # layer 7
+                conv16 = self.conv2d(drop15, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 1, 1, self.SEED)
+                re16 = tf.nn.relu(conv16)
+                deconv1 = self.conv2d_transpose(re16, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 2,
+                                                self.SEED)
+                re_d1 = tf.nn.relu(deconv1)
+                add1 = pool10 + re_d1
+
+            with tf.variable_scope("layer8"):  # layer 8
+                conv_d1 = self.conv2d(add1, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 8, 3, 3, self.SEED)
+                re_d1 = tf.nn.relu(conv_d1)
+                deconv2 = self.conv2d_transpose(re_d1, self.BASE_CHANNEL_PRE * 8, self.BASE_CHANNEL_PRE * 4, 3, 2,
+                                                self.SEED)
+                re_d2 = tf.nn.relu(deconv2)
+                add2 = pool7 + re_d2
+
+            with tf.variable_scope("layer9"):  # layer 9
+                conv_d2 = self.conv2d(add2, self.BASE_CHANNEL_PRE * 4, self.BASE_CHANNEL_PRE * 4, 4, 4, self.SEED)
+                re_d2 = tf.nn.relu(conv_d2)
+                deconv3 = self.conv2d_transpose(re_d2, self.BASE_CHANNEL_PRE * 4, self.BASE_CHANNEL_PRE, 8, 8,
+                                                self.SEED)
+                re_d3 = tf.nn.relu(deconv3)
+                conv_d3 = self.conv2d(re_d3, self.BASE_CHANNEL_PRE, self.IMG_CHANNEL, 4, 4, self.SEED)
+                softmax_d3 = tf.nn.softmax(conv_d3)
+
+        return softmax_d3
+
+
     
 
 
-class SPIGAN(object):
+class SPIGAN3(object):
     def __init__(self, input_channel, output_channel, base_channel, class_num, in_width, in_height, focal_loss_gamma,
                  seed):
         # self.INPUT_IMAGE_SIZE = 128

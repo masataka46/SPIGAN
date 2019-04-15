@@ -4,7 +4,7 @@ import random
 import tensorflow as tf
 from PIL import Image
 
-class Make_datasets_gyoza():
+class Make_dataset():
 
     def __init__(self, train_dir_name, test_dir_name, img_width, img_height, img_width_be_crop, img_height_be_crop,
                  seed=1234, crop_flag=False):
@@ -261,11 +261,12 @@ class Make_datasets_gyoza():
 
         # return image, label
 
-def check_tfrecords(filename):
+def check_SYNTHIA_RAND_CITYSCAPES(filename):
     example = next(tf.python_io.tf_record_iterator(filename))
     tf_sample = tf.train.Example.FromString(example)
     print("type(tf_sample), ", type(tf_sample))
     print("tf_sample, ", tf_sample)
+
 
 def debug_specify_cannot_open_img(dir_name):
     target_files = []
@@ -296,18 +297,5 @@ if __name__ == '__main__':
     img_height = 128
     img_width_be_crop = 128
     img_height_be_crop = 128
-    # check_mnist_npz(FILE_NAME)
-    # make_datasets = Make_datasets_MNIST(FILE_NAME, 28, 28, 1234)
-    # check_tfrecords(FILE_NAME)
-    # make_datasets_gyoza = Make_datasets_gyoza(FILE_NAME, '', '', img_width, img_height, img_width_be_crop, img_height_be_crop,
-    #                                           1234, True, False, True, 2)
-    # len_data = make_datasets_gyoza.make_data_for_1_epoch()
-    # print("len_data, ", len_data)
-    # data_batch = make_datasets_gyoza.get_data_for_1_batch(0,3)
-    # print("data_batch.shape, ", data_batch.shape)
-    # print("np.max(data_batch), ", np.max(data_batch))
-    # print("np.min(data_batch), ", np.min(data_batch))
-
-    # make_datasets_gyoza.read_tfrecord(FILE_NAME, img_height, img_width, 3, 2)
     dir_name = '../../../hiroki_shimada/master_data/ok/test/20181218_aug'
     debug_specify_cannot_open_img(dir_name)

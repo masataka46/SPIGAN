@@ -4,7 +4,7 @@ import tensorflow as tf
 import utility as Utility
 import argparse
 from model_GAN import SPIGAN as Model
-from make_datasets import Make_datasets_gyoza as Make_datasets
+from make_datasets import Make_dataset as Make_datasets
 import time
 
 class MainProcess(object):
