@@ -10,7 +10,7 @@ import time
 class MainProcess(object):
     def __init__(self, batch_size=8, log_file_name='log01', epoch=100,
                  syn_dir_name='', real_train_dir_name='', real_val_dir_name='', syn_seg_dir_name='', real_seg_dir_name='',
-                 depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16):
+                 depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16, path_to_vgg19=''):
         #global variants
         self.batch_size = batch_size
         self.logfile_name = log_file_name
@@ -36,6 +36,7 @@ class MainProcess(object):
         self.seed = 1234
         self.crop_flag = True
         self.valid_span = valid_span
+        self.path_to_vgg19 = path_to_vgg19
         np.random.seed(seed=self.seed)
         self.board_dir_name = 'tensorboard/' + self.logfile_name
         self.out_img_dir = 'out_images' #output image file
@@ -75,7 +76,7 @@ class MainProcess(object):
         except:
             pass
 
-        self.model = Model(self.img_channel, self.anno_channel, self.seed, self.base_channel, self.keep_prob_rate)
+        self.model = Model(self.img_channel, self.anno_channel, self.seed, self.base_channel, self.keep_prob_rate, self.path_to_vgg19)
 
         '''
         syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
@@ -407,6 +408,8 @@ if __name__ == '__main__':
                             help='path to real label data')
         parser.add_argument('--depth_dir_name', '-ddn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/',
                             help='path to depth data')
+        parser.add_argument('--path_to_vgg', '-pvg', type=str, default='./vgg19.npy',
+                            help='path to vgg19 parameters')
         parser.add_argument('--valid_span', '-vs', type=int, default=1, help='validation span')
         parser.add_argument('--restore_model_name', '-rmn', type=str, default='', help='restored model name')
         parser.add_argument('--save_model_span', '-ss', type=int, default=10, help='span of saving model')
@@ -419,8 +422,8 @@ if __name__ == '__main__':
                                syn_dir_name=args.syn_dir_name, real_train_dir_name=args.real_train_dir_name,
                                real_val_dir_name=args.real_val_dir_name, syn_seg_dir_name=args.syn_seg_dir_name,
                                real_seg_dir_name=args.real_seg_dir_name, depth_dir_name=args.depth_dir_name,
-                               valid_span=args.valid_span, restored_model_name=args.restored_model_name,
-                               save_model_span=args.save_model_span, base_channel=args.base_channel)
+                               valid_span=args.valid_span, restored_model_name=args.restore_model_name,
+                               save_model_span=args.save_model_span, base_channel=args.base_channel, path_to_vgg19=args.path_to_vgg)
     # batch_size = 8, log_file_name = 'log01', epoch = 100,
     # syn_dir_name = '', real_train_dir_name = '', real_val_dir_name = '', syn_seg_dir_name = '', real_seg_dir_name = '',
     # depth_dir_name = '', valid_span = 1, restored_model_name = '', save_model_span = 10, base_channel = 16
