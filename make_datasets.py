@@ -9,7 +9,7 @@ class Make_dataset():
 
     def __init__(self, syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
                  img_width, img_height, img_width_be_crop_syn, img_width_be_crop_real, img_height_be_crop,
-                 seed=1234, crop_flag=False):
+                 seed=1234, crop_flag=True):
         '''
         Parsed_CityScape---train---:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 19, 21,    255]
         GT---parsed_LABELS------:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22]
@@ -52,10 +52,11 @@ class Make_dataset():
         
         file_real_val_list = self.get_file_names(self.real_val_dir_name)
         self.file_real_val_list = self.select_only_png(file_real_val_list)
-        self.file_real_val_list = len(self.file_real_val_list)
+        self.file_real_val_list_num = len(self.file_real_val_list)
 
-
-
+        print("self.file_syn_list_num, ", self.file_syn_list_num)
+        print("self.file_real_train_list_num, ", self.file_real_train_list_num)
+        print("self.file_real_val_list_num, ", self.file_real_val_list_num)
         # self.train_file_tar_list = self.add_target_to_list(file_train_list, 0)
         # random.shuffle(self.train_file_tar_list)
         # print("len(train_file_tar_list), ", len(self.train_file_tar_list))
@@ -154,33 +155,39 @@ class Make_dataset():
 
     def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop_syn, width_be_crop_real, 
                   height_be_crop, seg_dir, depth_dir, crop_flag=True):
+        print("width_be_crop_syn, ", width_be_crop_syn)
+        print("width_be_crop_real, ", width_be_crop_real)
+        print("height_be_crop, ", height_be_crop)
+        print("width, ", width)
+        print("height, ", height)
         syns, reals, segs, depths = [], [], [], []
         for num, (file_syn1, file_real1) in enumerate(zip(file_syn_list, file_real_list)):
             syn = Image.open(file_syn1)                        #RGB 760h  x 1280w x 3c -> 380h x 640w x 3c
             syn_np = np.asarray(syn)
-            syn_np = cv2.resize(syn_np, (height_be_crop, width_be_crop_syn))
+            syn_np = cv2.resize(syn_np, (width_be_crop_syn, height_be_crop))
 
             syn_dir_name, syn_file_name_only = file_syn1.rsplit('/', 1)
             seg = Image.open(seg_dir + syn_file_name_only)  # L   760  x 1280w......19classes -> 380h x 640w
             seg_np = np.asarray(seg)
-            seg_np = cv2.resize(seg_np, (height_be_crop, width_be_crop_syn), interpolation=cv2.INTER_NEAREST)
+            seg_np = cv2.resize(seg_np, (width_be_crop_syn, height_be_crop), interpolation=cv2.INTER_NEAREST)
 
             depth = Image.open(depth_dir + syn_file_name_only)  # RGB 760h  x 1280w x 3c -> 380h x 640w x 3c
             depth_np = np.asarray(depth)
-            depth_np = cv2.resize(depth_np, (height_be_crop, width_be_crop_syn), interpolation=cv2.INTER_NEAREST)
+            depth_np = cv2.resize(depth_np, (width_be_crop_syn, height_be_crop), interpolation=cv2.INTER_NEAREST)
 
             real = Image.open(file_real1)  # RGB 1024h x 2048w x 3c -> 380h x 760w x 3c
             real_np = np.asarray(real)
-            real_np = cv2.resize(real_np, (height_be_crop, width_be_crop_real))
+            real_np = cv2.resize(real_np, (width_be_crop_real, height_be_crop))
 
             if crop_flag:
-                w_margin = np.random.randint(0, width_be_crop_syn - width + 1)
-                w_margin_b = np.random.randint(0, width_be_crop_real - width + 1)
+                w_margin_s = np.random.randint(0, width_be_crop_syn - width + 1)
+                w_margin_r = np.random.randint(0, width_be_crop_real - width + 1)
                 h_margin = np.random.randint(0, height_be_crop - height + 1)
-                syn_np = syn_np[h_margin:h_margin + height, w_margin:w_margin + width, :]
-                seg_np = seg_np[h_margin:h_margin + height, w_margin:w_margin + width, :]
-                depth_np = depth_np[h_margin:h_margin + height, w_margin:w_margin + width, :]
-                real_np = real_np[h_margin:h_margin + height, w_margin_b:w_margin_b + width, :]
+
+                syn_np = syn_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width, :]
+                seg_np = seg_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width]
+                depth_np = depth_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width, :]
+                real_np = real_np[h_margin:h_margin + height, w_margin_r:w_margin_r + width, :]
 
             syn_np = syn_np.astype(np.float32) / 255.
             seg_np = (self.convert_int(seg_np)).astype(np.int32)
@@ -194,7 +201,7 @@ class Make_dataset():
             reals.append(real_np)
 
         syns_np = np.asarray(syns, dtype=np.float32)
-        segs_np = np.asarray(syns, dtype=np.int32)
+        segs_np = np.asarray(segs, dtype=np.int32)
         depths_np = np.asarray(depths, dtype=np.float32)
         reals_np = np.asarray(reals, dtype=np.float32)
         return syns_np, segs_np, depths_np, reals_np
@@ -271,16 +278,6 @@ class Make_dataset():
 
         image = tf.decode_raw(features['image'], tf.float32)
         label = tf.decode_raw(features['label'], tf.float64)
-        # print("image.get_shape().as_list(), ", image.get_shape().as_list())
-        # print("label.get_shape().as_list(), ", label.get_shape().as_list())
-
-
-        # image = tf.reshape(image, [img_h, img_w, img_c])
-        # label = tf.reshape(label, [class_num])
-        #
-        # image, label = tf.train.batch([image, label],
-        #                               batch_size=16,
-        #                               capacity=500)
 
         sess_data = tf.Session()
         sess_data.run(tf.local_variables_initializer())
@@ -330,10 +327,33 @@ if __name__ == '__main__':
     syn_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/RGB/'
     real_train_dir_name = '/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/train/'
     real_val_dir_name = '/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/val/'
-    syn_seg_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/Depth/Depth/'
+    depth_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/Depth/Depth/'
     real_seg_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/Parsed_CityScape/val/'
-    depth_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/'
+    syn_seg_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/'
     make_dataset = Make_dataset(syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
                  img_width, img_height, img_width_be_crop_syn, img_width_be_crop_real, img_height_be_crop)
+    len_syn, len_real_tr = make_dataset.make_data_for_1_epoch()
+    print("len_syn, ", len_syn)
+    print("len_real_tr, ", len_real_tr)
+    syns_np, segs_np, depths_np, reals_np = make_dataset.get_data_for_1_batch(0, 10)
+    print("syns_np.shape, ", syns_np.shape)
+    print("segs_np.shape, ", segs_np.shape)
+    print("depths_np.shape, ", depths_np.shape)
+    print("reals_np.shape, ", reals_np.shape)
+    
+    print("syns_np.dtype, ", syns_np.dtype)
+    print("segs_np.dtype, ", segs_np.dtype)
+    print("depths_np.dtype, ", depths_np.dtype)
+    print("reals_np.dtype, ", reals_np.dtype)
+    
+    print("np.max(syns_np), ", np.max(syns_np))
+    print("np.max(segs_np), ", np.max(segs_np))
+    print("np.max(depths_np), ", np.max(depths_np))
+    print("np.max(reals_np), ", np.max(reals_np))
+    
+    print("np.min(syns_np), ", np.min(syns_np))
+    print("np.min(segs_np), ", np.min(segs_np))
+    print("np.min(depths_np), ", np.min(depths_np))
+    print("np.min(reals_np), ", np.min(reals_np))
 
     # debug_specify_cannot_open_img(dir_name)
