@@ -89,10 +89,10 @@ class MainProcess(object):
 
         self.x_s = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='x_s')  # synthesis image
         self.x_r = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='x_r')  # real image
-        self.seg = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.anno_channel], name='seg_label')
+        self.seg = tf.placeholder(tf.int32, [None, self.img_height, self.img_width], name='seg_label')
         self.pi = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.depth_channel], name='depth_label')
-        self.tar_d_r = tf.placeholder(tf.float32, [None, 1], name='target_discriminator_for_real')
-        self.tar_d_f = tf.placeholder(tf.float32, [None, 1], name='target_discriminator_for_fake')
+        self.tar_d_r = tf.placeholder(tf.float32, [None, self.img_height//8, self.img_width//8, 1], name='target_discriminator_for_real')
+        self.tar_d_f = tf.placeholder(tf.float32, [None, self.img_height//8, self.img_width//8, 1], name='target_discriminator_for_fake')
 
         # self.d_dis_f = tf.placeholder(tf.float32, [None, 1], name='d_dis_f') #target of discriminator related to generator
         # self.d_dis_r = tf.placeholder(tf.float32, [None, 1], name='d_dis_r') #target of discriminator related to real image
@@ -134,13 +134,14 @@ class MainProcess(object):
             self.loss_adv = self.loss_dis_r + self.loss_dis_f
 
             #task prediction loss
-            self.loss_task_s = - tf.reduce_mean(tf.multiply(self.seg, tf.log(tf.clip_by_value(self.t_out_s, 1e-10, 1.0))),
+            seg_oneHot = tf.one_hot(self.seg, self.anno_channel, dtype=tf.float32)
+            self.loss_task_s = - tf.reduce_mean(tf.multiply(seg_oneHot, tf.log(tf.clip_by_value(self.t_out_s, 1e-10, 1.0))),
                                                  name='task_prediction_loss_for_synthesis')
-            correct_prediction_s = tf.equal(tf.argmax(self.t_out_s, 3), tf.argmax(self.seg, 3))
+            correct_prediction_s = tf.equal(tf.argmax(self.t_out_s, 3), tf.argmax(seg_oneHot, 3))
             self.accuracy_s = tf.reduce_mean(tf.cast(correct_prediction_s, "float"))
-            self.loss_task_g = - tf.reduce_mean(tf.multiply(self.seg, tf.log(tf.clip_by_value(self.t_out_g, 1e-10, 1.0))),
+            self.loss_task_g = - tf.reduce_mean(tf.multiply(seg_oneHot, tf.log(tf.clip_by_value(self.t_out_g, 1e-10, 1.0))),
                                                  name='task_prediction_loss_for_generated')
-            correct_prediction_g = tf.equal(tf.argmax(self.t_out_g, 3), tf.argmax(self.seg, 3))
+            correct_prediction_g = tf.equal(tf.argmax(self.t_out_g, 3), tf.argmax(seg_oneHot, 3))
             self.accuracy_g = tf.reduce_mean(tf.cast(correct_prediction_g, "float"))
             self.loss_task = self.loss_task_s + self.loss_task_g
 
@@ -273,20 +274,26 @@ class MainProcess(object):
             sum_loss_dis_total = np.float32(0)
             sum_loss_ref_total = np.float32(0)
 
-            len_data = self.make_datasets.make_data_for_1_epoch()
+            len_data_syn, len_data_real = self.make_datasets.make_data_for_1_epoch()
 
-            for i in range(0, len_data, self.batch_size):
+            for i in range(0, len_data_syn, self.batch_size):
                 if i % (self.batch_size * 100) == 0:
                     print("i = ", i)
-                back_batch, anno_batch, real_img_batch = self.make_datasets.get_data_for_1_batch(i, self.batch_size)
-                # z = self.make_datasets.make_random_z_with_norm(self.NOISE_MEAN, NOISE_STDDEV, len(img_batch), NOISE_UNIT_NUM)
-                # tar_1 = self.make_datasets.make_target_1_0(1.0, len(back_batch)) #1 ->
-                # tar_0 = self.make_datasets.make_target_1_0(0.0, len(back_batch)) #0 ->
+                syns_np, segs_np, depths_np, reals_np = self.make_datasets.get_data_for_1_batch(i, self.batch_size)
+                tar_1 = self.make_datasets.make_target_1_0(1.0, len(syns_np), self.img_width//8, self.img_height//8) #1 ->
+                tar_0 = self.make_datasets.make_target_1_0(0.0, len(syns_np), self.img_width//8, self.img_height//8) #0 ->
                 #train discriminator
-                self.sess.run(self.train_dis, feed_dict={self.back:back_batch, self.anno:anno_batch,
-                                self.real_img:real_img_batch, self.is_training:True, self.keep_prob:self.keep_prob_rate})
-                self.sess.run(self.train_ref, feed_dict={self.back:back_batch, self.anno:anno_batch,
-                                self.is_training:True, self.keep_prob:self.keep_prob_rate})
+                # g_out_ = self.sess.run(self.g_out, feed_dict={self.x_s:syns_np, self.x_r:reals_np, self.seg:segs_np, self.pi:depths_np,
+                #                 self.tar_d_f:tar_1, self.is_training:True, self.keep_prob:self.keep_prob_rate})
+                # print("g_out_.shape, ", g_out_.shape)
+                self.sess.run(self.train_dis, feed_dict={self.x_s:syns_np, self.x_r:reals_np,
+                                self.tar_d_r:tar_1, self.tar_d_f:tar_0, self.is_training:True, self.keep_prob:self.keep_prob_rate})
+                self.sess.run(self.train_tas, feed_dict={self.x_s:syns_np, self.seg:segs_np,
+                                                         self.is_training:True, self.keep_prob:self.keep_prob_rate})
+                self.sess.run(self.train_pri, feed_dict={self.x_s:syns_np, self.pi:depths_np,
+                                                         self.is_training:True, self.keep_prob:self.keep_prob_rate})
+                self.sess.run(self.train_gen, feed_dict={self.x_s:syns_np, self.x_r:reals_np, self.seg:segs_np, self.pi:depths_np,
+                                self.tar_d_f:tar_1, self.is_training:True, self.keep_prob:self.keep_prob_rate})
                 # sess.run(train_dec_opt, feed_dict={z_:z, x_: img_batch, d_dis_f_: tar_g_1, is_training_:True})
                 #train encoder
                 # sess.run(train_enc, feed_dict={x_:img_batch, d_dis_r_: tar_g_0, is_training_:True, z_:z})
@@ -402,11 +409,11 @@ if __name__ == '__main__':
                             help='path to real training data')
         parser.add_argument('--real_val_dir_name', '-rvn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/val/',
                             help='path to real validation data')
-        parser.add_argument('--syn_seg_dir_name', '-ssn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/Depth/Depth/',
+        parser.add_argument('--syn_seg_dir_name', '-ssn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/',
                             help='path to synthesis label data')
         parser.add_argument('--real_seg_dir_name', '-rsn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/Parsed_CityScape/val/',
                             help='path to real label data')
-        parser.add_argument('--depth_dir_name', '-ddn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/',
+        parser.add_argument('--depth_dir_name', '-ddn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/Depth/Depth/',
                             help='path to depth data')
         parser.add_argument('--path_to_vgg', '-pvg', type=str, default='./vgg19.npy',
                             help='path to vgg19 parameters')

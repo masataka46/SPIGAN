@@ -245,11 +245,11 @@ class Make_dataset():
         return norms
 
 
-    def make_target_1_0(self, value, data_num):
+    def make_target_1_0(self, value, data_num, width, height):
         if value == 0.0:
-            target = np.zeros((data_num, 1), dtype=np.float32)
+            target = np.zeros((data_num, height, width, 1), dtype=np.float32)
         elif value == 1.0:
-            target = np.ones((data_num, 1), dtype=np.float32)
+            target = np.ones((data_num, height, width, 1), dtype=np.float32)
         else:
             print("target value error")
             target = None
