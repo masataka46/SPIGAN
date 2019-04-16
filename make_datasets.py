@@ -3,11 +3,12 @@ import os
 import random
 import tensorflow as tf
 from PIL import Image
+import cv2
 
 class Make_dataset():
 
     def __init__(self, syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
-                 img_width, img_height, img_width_be_crop, img_height_be_crop,
+                 img_width, img_height, img_width_be_crop_syn, img_width_be_crop_real, img_height_be_crop,
                  seed=1234, crop_flag=False):
         '''
         Parsed_CityScape---train---:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 19, 21,    255]
@@ -21,7 +22,8 @@ class Make_dataset():
         self.depth_dir_name = depth_dir_name
         self.img_width = img_width
         self.img_height = img_height
-        self.img_w_be_crop = img_width_be_crop
+        self.img_w_be_crop_syn = img_width_be_crop_syn
+        self.img_w_be_crop_real = img_width_be_crop_real
         self.img_h_be_crop = img_height_be_crop
         self.seed = seed
         self.crop_flag = crop_flag
@@ -34,8 +36,9 @@ class Make_dataset():
         print("self.depth_dir_name, ", self.depth_dir_name)
         print("self.img_width, ", self.img_width)
         print("self.img_height, ", self.img_height)
-        print("self.img_w_be_crop, ", self.img_w_be_crop)
-        print("self.img_h_be_crop, ", self.img_w_be_crop)
+        print("self.img_w_be_crop_syn, ", self.img_w_be_crop_syn)
+        print("self.img_w_be_crop_real, ", self.img_w_be_crop_real)
+        print("self.img_h_be_crop, ", self.img_h_be_crop)
         print("self.seed, ", self.seed)
         print("self.crop_flag, ", crop_flag)
 
@@ -131,6 +134,14 @@ class Make_dataset():
     #     ok_train = ok_files[ok_test_num:]
     #     return ok_train, ok_test, ng_files
 
+    def convert_int(self, seg_np):
+        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22] ->
+        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
+        seg_np_mod = np.where(seg_np == 19, 16, seg_np)
+        seg_np_mod = np.where(seg_np_mod == 21, 18, seg_np_mod)
+        seg_np_mod = np.where(seg_np_mod == 22, 13, seg_np_mod)
+        return seg_np_mod
+
 
 
     def add_target_to_list(self, file_list, tar_num):
@@ -141,32 +152,52 @@ class Make_dataset():
         return file_name_tar_list
 
 
-    def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop, height_be_crop,
-                  seg_dir, depth_dir, crop_flag=True):
+    def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop_syn, width_be_crop_real, 
+                  height_be_crop, seg_dir, depth_dir, crop_flag=True):
         syns, reals, segs, depths = [], [], [], []
         for num, (file_syn1, file_real1) in enumerate(zip(file_syn_list, file_real_list)):
-            syn = Image.open(file_syn1)                        #RGB 760h  x 1280w x 3c
+            syn = Image.open(file_syn1)                        #RGB 760h  x 1280w x 3c -> 380h x 640w x 3c
+            syn_np = np.asarray(syn)
+            syn_np = cv2.resize(syn_np, (height_be_crop, width_be_crop_syn))
+
             syn_dir_name, syn_file_name_only = file_syn1.rsplit('/', 1)
-            seg = Image.open(seg_dir + syn_file_name_only)     #L   760h  x 1280w......19classes
-            depth = Image.open(depth_dir + syn_file_name_only) #RGB 760h  x 1280w x 3c
-            real = Image.open(file_real1)                      #RGB 1024h x 2048w x 3c
+            seg = Image.open(seg_dir + syn_file_name_only)  # L   760  x 1280w......19classes -> 380h x 640w
+            seg_np = np.asarray(seg)
+            seg_np = cv2.resize(seg_np, (height_be_crop, width_be_crop_syn), interpolation=cv2.INTER_NEAREST)
 
+            depth = Image.open(depth_dir + syn_file_name_only)  # RGB 760h  x 1280w x 3c -> 380h x 640w x 3c
+            depth_np = np.asarray(depth)
+            depth_np = cv2.resize(depth_np, (height_be_crop, width_be_crop_syn), interpolation=cv2.INTER_NEAREST)
 
+            real = Image.open(file_real1)  # RGB 1024h x 2048w x 3c -> 380h x 760w x 3c
+            real_np = np.asarray(real)
+            real_np = cv2.resize(real_np, (height_be_crop, width_be_crop_real))
 
-            image = image.resize((width, height))
-            image = np.asarray(image, dtype=np.float32)
-            images.append(image)
-            tar = file_tar1['tar']
-            tar = np.asarray(tar, dtype=np.float32)
-            # tar = self.convert_int_to_oneHot(tar)
-            tars.append(tar)
-        images_np = np.asarray(images, dtype=np.float32)
-        tar_np = np.asarray(tars, dtype=np.float32)
-        return images_np, tar_np
+            if crop_flag:
+                w_margin = np.random.randint(0, width_be_crop_syn - width + 1)
+                w_margin_b = np.random.randint(0, width_be_crop_real - width + 1)
+                h_margin = np.random.randint(0, height_be_crop - height + 1)
+                syn_np = syn_np[h_margin:h_margin + height, w_margin:w_margin + width, :]
+                seg_np = seg_np[h_margin:h_margin + height, w_margin:w_margin + width, :]
+                depth_np = depth_np[h_margin:h_margin + height, w_margin:w_margin + width, :]
+                real_np = real_np[h_margin:h_margin + height, w_margin_b:w_margin_b + width, :]
 
-    # def crop_img(self, ori_img, output_img_W, output_img_H, margin_W, margin_H):
-    #     cropped_img = ori_img.crop((margin_W, margin_H, margin_W + output_img_W, margin_H + output_img_H))
-    #     return cropped_img
+            syn_np = syn_np.astype(np.float32) / 255.
+            seg_np = (self.convert_int(seg_np)).astype(np.int32)
+            depth_np, _ = np.split(depth_np, [1], axis=2)
+            depth_np = depth_np.astype(np.float32) / 255.
+            real_np = real_np.astype(np.float32) / 255.
+
+            syns.append(syn_np)
+            segs.append(seg_np)
+            depths.append(depth_np)
+            reals.append(real_np)
+
+        syns_np = np.asarray(syns, dtype=np.float32)
+        segs_np = np.asarray(syns, dtype=np.int32)
+        depths_np = np.asarray(depths, dtype=np.float32)
+        reals_np = np.asarray(reals, dtype=np.float32)
+        return syns_np, segs_np, depths_np, reals_np
 
 
     def normalize_data(self, data):
@@ -184,10 +215,13 @@ class Make_dataset():
 
     def get_data_for_1_batch(self, i, batchsize):
         filename_syn_batch = self.file_syn_list_1_epoch[i:i + batchsize]
-        filename_real_batch = self.file_real_train_list_1_epoch
-        images, _ = self.read_data(filename_syn_batch, self.img_width, self.img_height, self.img_w_be_crop, self.img_h_be_crop, False)
-        images_n = self.normalize_data(images)
-        return images_n
+        i_real = i % self.file_real_train_list_num
+        filename_real_batch = self.file_real_train_list_1_epoch[i_real:i_real + batchsize]
+        syns_np, segs_np, depths_np, reals_np = self.read_data(filename_syn_batch, filename_real_batch, self.img_width, self.img_height,
+                                   self.img_w_be_crop_syn, self.img_w_be_crop_real, self.img_h_be_crop, self.syn_seg_dir_name,
+                                   self.depth_dir_name, crop_flag=True)
+        # images_n = self.normalize_data(images)
+        return syns_np, segs_np, depths_np, reals_np
 
     def get_valid_data_for_1_batch(self, i, batchsize, only_ng_flag=False):
         if only_ng_flag:
@@ -286,11 +320,20 @@ def debug_specify_cannot_open_img(dir_name):
 if __name__ == '__main__':
     #debug
     # FILE_NAME = '../../Efficient-GAN/sample_png_data/'
-    FILE_NAME = '../../Efficient-GAN/tmp_debug/'
+    # FILE_NAME = '../../Efficient-GAN/tmp_debug/'
 
-    img_width = 128
-    img_height = 128
-    img_width_be_crop = 128
-    img_height_be_crop = 128
-    dir_name = '../../../hiroki_shimada/master_data/ok/test/20181218_aug'
-    debug_specify_cannot_open_img(dir_name)
+    img_width = 320
+    img_height = 320
+    img_width_be_crop_syn = 640
+    img_width_be_crop_real = 760
+    img_height_be_crop = 380
+    syn_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/RGB/'
+    real_train_dir_name = '/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/train/'
+    real_val_dir_name = '/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/val/'
+    syn_seg_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/Depth/Depth/'
+    real_seg_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/Parsed_CityScape/val/'
+    depth_dir_name = '/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/'
+    make_dataset = Make_dataset(syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
+                 img_width, img_height, img_width_be_crop_syn, img_width_be_crop_real, img_height_be_crop)
+
+    # debug_specify_cannot_open_img(dir_name)

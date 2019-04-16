@@ -207,6 +207,8 @@ class SPIGAN():
                  base_channel_predictor=16):
         self.NOISE_UNIT_NUM = noise_unit_num  # 200
         self.IMG_CHANNEL = img_channel  # 3
+        self.SEG_CLASS = 19
+        self.DEPTH_CLASS = 1
         self.ANNO_CHANNEL = anno_channel # 4
         self.SEED = seed
         np.random.seed(seed=self.SEED)
@@ -439,7 +441,7 @@ class SPIGAN():
                 re_d2 = tf.nn.relu(conv_d2)
                 deconv3 = self.conv2d_transpose(re_d2, self.BASE_CHANNEL_PRE*4, self.BASE_CHANNEL_PRE, 8, 8, self.SEED)
                 re_d3 = tf.nn.relu(deconv3)
-                conv_d3 = self.conv2d(re_d3, self.BASE_CHANNEL_PRE, self.IMG_CHANNEL, 4, 4, self.SEED)
+                conv_d3 = self.conv2d(re_d3, self.BASE_CHANNEL_PRE, self.SEG_CLASS, 4, 4, self.SEED)
                 softmax_d3 = tf.nn.softmax(conv_d3)
 
         return softmax_d3
@@ -517,10 +519,9 @@ class SPIGAN():
                 deconv3 = self.conv2d_transpose(re_d2, self.BASE_CHANNEL_PRE * 4, self.BASE_CHANNEL_PRE, 8, 8,
                                                 self.SEED)
                 re_d3 = tf.nn.relu(deconv3)
-                conv_d3 = self.conv2d(re_d3, self.BASE_CHANNEL_PRE, self.IMG_CHANNEL, 4, 4, self.SEED)
-                softmax_d3 = tf.nn.softmax(conv_d3)
+                conv_d3 = self.conv2d(re_d3, self.BASE_CHANNEL_PRE, self.DEPTH_CLASS, 4, 4, self.SEED)
 
-        return softmax_d3
+        return conv_d3
 
 
     
