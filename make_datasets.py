@@ -6,99 +6,84 @@ from PIL import Image
 
 class Make_dataset():
 
-    def __init__(self, train_dir_name, test_dir_name, img_width, img_height, img_width_be_crop, img_height_be_crop,
+    def __init__(self, syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
+                 img_width, img_height, img_width_be_crop, img_height_be_crop,
                  seed=1234, crop_flag=False):
-        # train_dir_name = train_dir_name
+        '''
+        Parsed_CityScape---train---:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 19, 21,    255]
+        GT---parsed_LABELS------:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22]
+        '''
+        self.syn_dir_name = syn_dir_name
+        self.real_train_dir_name = real_train_dir_name
+        self.real_val_dir_name = real_val_dir_name
+        self.syn_seg_dir_name = syn_seg_dir_name
+        self.real_seg_dir_name = real_seg_dir_name
+        self.depth_dir_name = depth_dir_name
         self.img_width = img_width
         self.img_height = img_height
         self.img_w_be_crop = img_width_be_crop
         self.img_h_be_crop = img_height_be_crop
         self.seed = seed
         self.crop_flag = crop_flag
-        self.train_dir_name = train_dir_name
-        self.test_dir_name = test_dir_name
-        self.crop_flag = crop_flag
-        # self.ok_ng_same_folda_flag = ok_ng_same_folder_flag
         np.random.seed(self.seed)
-        # self.ok_prefix = "OK"
-        # self.ng_prefix = "NG"
-        # self.ok_test_num = ok_test_num
-        print("self.train_dir_name, ", self.train_dir_name)
-        print("self.test_dir_name, ", self.test_dir_name)
+        print("self.syn_dir_name, ", self.syn_dir_name)
+        print("self.real_train_dir_name, ", self.real_train_dir_name)
+        print("self.real_val_dir_name, ", self.real_val_dir_name)
+        print("self.syn_seg_dir_name, ", self.syn_seg_dir_name)
+        print("self.real_seg_dir_name, ", self.real_seg_dir_name)
+        print("self.depth_dir_name, ", self.depth_dir_name)
         print("self.img_width, ", self.img_width)
         print("self.img_height, ", self.img_height)
         print("self.img_w_be_crop, ", self.img_w_be_crop)
         print("self.img_h_be_crop, ", self.img_w_be_crop)
         print("self.seed, ", self.seed)
         print("self.crop_flag, ", crop_flag)
-        # print("self.ok_prefix, ", self.ok_prefix)
-        # print("self.ng_prefix, ", self.ng_prefix)
-        # print("self.ok_test_num, ", self.ok_test_num)
-        # if train_flag:
-        if ok_ng_same_folder_flag: # distinguish by filename prefix
-            self.train_test_dir_name = train_dir_name
-            # print("self.train_test_dir_name, ", self.train_test_dir_name)
-            file_train_test_list = self.get_file_names(self.train_test_dir_name)
-            file_train_test_list = self.select_only_png(file_train_test_list)
-            # print("len(file_train_test_list), ", len(file_train_test_list))
-            file_train_list, file_test_ok_list, file_test_ng_list = self.divide_to_train_testOk_testNg(
-                file_train_test_list, self.ok_prefix, self.ng_prefix, self.ok_test_num)
-            # print("len(file_train_list), ", len(file_train_list))
-            # print("len(file_test_ok_list), ", len(file_test_ok_list))
-            # print("len(file_test_ng_list), ", len(file_test_ng_list))
 
-            self.train_file_tar_list = self.add_target_to_list(file_train_list, 0)
-            self.test_ok_file_tar_list = self.add_target_to_list(file_test_ok_list, 0)
-            self.test_ng_file_tar_list = self.add_target_to_list(file_test_ng_list, 1)
-            print("len(train_file_tar_list), ", len(self.train_file_tar_list))
-            print("len(self.test_ok_file_tar_list), ", len(self.test_ok_file_tar_list))
-            print("len(self.test_ng_file_tar_list), ", len(self.test_ng_file_tar_list))
-            self.test_file_tar_list = self.test_ok_file_tar_list + self.test_ng_file_tar_list
-            print("len(self.test_file_tar_list), ", len(self.test_file_tar_list))
-        else:
-            self.train_dir_name = train_dir_name
-            print("self.train_dir, ", self.train_dir_name)
-            file_train_list = self.get_file_names(self.train_dir_name)
-            file_train_list = self.select_only_png(file_train_list)
+        file_syn_list = self.get_file_names(self.syn_dir_name)
+        self.file_syn_list = self.select_only_png(file_syn_list)
+        self.file_syn_list_num = len(self.file_syn_list)
 
-            if add_train_dir_name != '':
-                self.add_train_dir_name = add_train_dir_name
-                print("self.add_train_dir, ", self.add_train_dir_name)
-                file_train_list2 = self.get_file_names(self.add_train_dir_name)
-                file_train_list2 = self.select_only_png(file_train_list2)
-                file_train_list = file_train_list + file_train_list2
+        file_real_train_list = self.get_file_names(self.real_train_dir_name)
+        self.file_real_train_list = self.select_only_png(file_real_train_list)
+        self.file_real_train_list_num = len(self.file_real_train_list)
+        
+        file_real_val_list = self.get_file_names(self.real_val_dir_name)
+        self.file_real_val_list = self.select_only_png(file_real_val_list)
+        self.file_real_val_list = len(self.file_real_val_list)
 
-            self.train_file_tar_list = self.add_target_to_list(file_train_list, 0)
-            random.shuffle(self.train_file_tar_list)
-            print("len(train_file_tar_list), ", len(self.train_file_tar_list))
 
-            self.test_ok_dir_name = test_ok_dir_name
-            print("self.test_ok_dir_name, ", self.test_ok_dir_name)
-            file_test_ok_list = self.get_file_names(self.test_ok_dir_name)
-            file_test_ok_list = self.select_only_png(file_test_ok_list)
-            file_test_ok_list = self.delete_destroyed_file(file_test_ok_list)
-            
-            if add_test_ok_dir_name != '':
-                self.add_test_ok_dir_name = add_test_ok_dir_name
-                print("self.add_test_ok_dir_name, ", self.add_test_ok_dir_name)
-                file_test_ok_list2 = self.get_file_names(self.add_test_ok_dir_name)
-                file_test_ok_list2 = self.select_only_png(file_test_ok_list2)
-                file_test_ok_list2 = self.delete_destroyed_file(file_test_ok_list2)
-                file_test_ok_list = file_test_ok_list + file_test_ok_list2
-            
-            self.test_ok_file_tar_list = self.add_target_to_list(file_test_ok_list, 0)
-            print("len(self.test_ok_file_tar_list), ", len(self.test_ok_file_tar_list))
 
-            self.test_ng_dir_name = test_ng_dir_name
-            print("self.test_ng_dir_name, ", self.test_ng_dir_name)
-            file_test_ng_list = self.get_file_names(self.test_ng_dir_name)
-            file_test_ng_list = self.select_only_png(file_test_ng_list)
-            self.test_ng_file_tar_list = self.add_target_to_list(file_test_ng_list, 1)
-            print("len(self.test_ng_file_tar_list), ", len(self.test_ng_file_tar_list))
-
-            self.test_file_tar_list = self.test_ok_file_tar_list + self.test_ng_file_tar_list
-            print("len(self.test_file_tar_list), ", len(self.test_file_tar_list))
-            # print("self.test_file_tar_list[-1]['tar'], ", self.test_file_tar_list[-1]['tar'])
+        # self.train_file_tar_list = self.add_target_to_list(file_train_list, 0)
+        # random.shuffle(self.train_file_tar_list)
+        # print("len(train_file_tar_list), ", len(self.train_file_tar_list))
+        #
+        # self.test_ok_dir_name = test_ok_dir_name
+        # print("self.test_ok_dir_name, ", self.test_ok_dir_name)
+        # file_test_ok_list = self.get_file_names(self.test_ok_dir_name)
+        # file_test_ok_list = self.select_only_png(file_test_ok_list)
+        # file_test_ok_list = self.delete_destroyed_file(file_test_ok_list)
+        #
+        # if add_test_ok_dir_name != '':
+        #     self.add_test_ok_dir_name = add_test_ok_dir_name
+        #     print("self.add_test_ok_dir_name, ", self.add_test_ok_dir_name)
+        #     file_test_ok_list2 = self.get_file_names(self.add_test_ok_dir_name)
+        #     file_test_ok_list2 = self.select_only_png(file_test_ok_list2)
+        #     file_test_ok_list2 = self.delete_destroyed_file(file_test_ok_list2)
+        #     file_test_ok_list = file_test_ok_list + file_test_ok_list2
+        #
+        # self.test_ok_file_tar_list = self.add_target_to_list(file_test_ok_list, 0)
+        # print("len(self.test_ok_file_tar_list), ", len(self.test_ok_file_tar_list))
+        #
+        # self.test_ng_dir_name = test_ng_dir_name
+        # print("self.test_ng_dir_name, ", self.test_ng_dir_name)
+        # file_test_ng_list = self.get_file_names(self.test_ng_dir_name)
+        # file_test_ng_list = self.select_only_png(file_test_ng_list)
+        # self.test_ng_file_tar_list = self.add_target_to_list(file_test_ng_list, 1)
+        # print("len(self.test_ng_file_tar_list), ", len(self.test_ng_file_tar_list))
+        #
+        # self.test_file_tar_list = self.test_ok_file_tar_list + self.test_ng_file_tar_list
+        # print("len(self.test_file_tar_list), ", len(self.test_file_tar_list))
+        # # print("self.test_file_tar_list[-1]['tar'], ", self.test_file_tar_list[-1]['tar'])
 
 
     def get_file_names(self, dir_name):
@@ -117,34 +102,34 @@ class Make_dataset():
                 list_mod.append(y)
         return list_mod
 
-    def delete_destroyed_file(self, list):
-        list_mod = []
-        print("before delete, len is ", len(list))
-        for y in list:
-            dir_name, filename = y.rsplit("/", 1)
-            if (filename == '_976_8493841.png') or (filename == '_1943_8271175.png'):  # destroyed file
-                continue
-            list_mod.append(y)
-        print("after delete, len is ", len(list_mod))
-        return list_mod
+    # def delete_destroyed_file(self, list):
+    #     list_mod = []
+    #     print("before delete, len is ", len(list))
+    #     for y in list:
+    #         dir_name, filename = y.rsplit("/", 1)
+    #         if (filename == '_976_8493841.png') or (filename == '_1943_8271175.png'):  # destroyed file
+    #             continue
+    #         list_mod.append(y)
+    #     print("after delete, len is ", len(list_mod))
+    #     return list_mod
 
-    def divide_to_train_testOk_testNg(self, file_list, ok_prefix, ng_prefix, ok_test_num):
-        ok_files = []
-        ng_files = []
-        for num, file_list1 in enumerate(file_list):
-            dir_name, file_name = file_list1.rsplit("/", 1)
-            ok_ng, else_name = file_name.split("_", 1)
-            if ok_ng == ok_prefix:
-                ok_files.append(file_list1)
-            elif ok_ng == ng_prefix:
-                ng_files.append(file_list1)
-        print("len(file_list), ", len(file_list))
-        print("len(ok_files), ", len(ok_files))
-        print("len(ng_files), ", len(ng_files))
-        random.shuffle(ok_files)
-        ok_test = ok_files[:ok_test_num]
-        ok_train = ok_files[ok_test_num:]
-        return ok_train, ok_test, ng_files
+    # def divide_to_train_testOk_testNg(self, file_list, ok_prefix, ng_prefix, ok_test_num):
+    #     ok_files = []
+    #     ng_files = []
+    #     for num, file_list1 in enumerate(file_list):
+    #         dir_name, file_name = file_list1.rsplit("/", 1)
+    #         ok_ng, else_name = file_name.split("_", 1)
+    #         if ok_ng == ok_prefix:
+    #             ok_files.append(file_list1)
+    #         elif ok_ng == ng_prefix:
+    #             ng_files.append(file_list1)
+    #     print("len(file_list), ", len(file_list))
+    #     print("len(ok_files), ", len(ok_files))
+    #     print("len(ng_files), ", len(ng_files))
+    #     random.shuffle(ok_files)
+    #     ok_test = ok_files[:ok_test_num]
+    #     ok_train = ok_files[ok_test_num:]
+    #     return ok_train, ok_test, ng_files
 
 
 
@@ -156,11 +141,18 @@ class Make_dataset():
         return file_name_tar_list
 
 
-    def read_data(self, file_tar_list, width, height, width_be_crop, height_be_crop, crop_flag=False):
-        tars = []
-        images = []
-        for num, file_tar1 in enumerate(file_tar_list):
-            image = Image.open(file_tar1['image'])
+    def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop, height_be_crop,
+                  seg_dir, depth_dir, crop_flag=True):
+        syns, reals, segs, depths = [], [], [], []
+        for num, (file_syn1, file_real1) in enumerate(zip(file_syn_list, file_real_list)):
+            syn = Image.open(file_syn1)                        #RGB 760h  x 1280w x 3c
+            syn_dir_name, syn_file_name_only = file_syn1.rsplit('/', 1)
+            seg = Image.open(seg_dir + syn_file_name_only)     #L   760h  x 1280w......19classes
+            depth = Image.open(depth_dir + syn_file_name_only) #RGB 760h  x 1280w x 3c
+            real = Image.open(file_real1)                      #RGB 1024h x 2048w x 3c
+
+
+
             image = image.resize((width, height))
             image = np.asarray(image, dtype=np.float32)
             images.append(image)
@@ -184,13 +176,16 @@ class Make_dataset():
         return data_norm
 
     def make_data_for_1_epoch(self):
-        self.file_list_1_epoch = self.train_file_tar_list
-        random.shuffle(self.file_list_1_epoch)
-        return len(self.file_list_1_epoch)
+        self.file_syn_list_1_epoch = self.file_syn_list
+        random.shuffle(self.file_syn_list_1_epoch)
+        self.file_real_train_list_1_epoch = self.file_real_train_list
+        random.shuffle(self.file_real_train_list_1_epoch)
+        return len(self.file_syn_list_1_epoch), len(self.file_real_train_list_1_epoch)
 
     def get_data_for_1_batch(self, i, batchsize):
-        filename_batch = self.file_list_1_epoch[i:i + batchsize]
-        images, _ = self.read_data(filename_batch, self.img_width, self.img_height, self.img_w_be_crop, self.img_h_be_crop, False)
+        filename_syn_batch = self.file_syn_list_1_epoch[i:i + batchsize]
+        filename_real_batch = self.file_real_train_list_1_epoch
+        images, _ = self.read_data(filename_syn_batch, self.img_width, self.img_height, self.img_w_be_crop, self.img_h_be_crop, False)
         images_n = self.normalize_data(images)
         return images_n
 
