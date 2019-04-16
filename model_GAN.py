@@ -330,7 +330,7 @@ class SPIGAN():
 
         return conv_d3
 
-    def VGG19(self, rgb):
+    def vgg19(self, rgb, reuse=False):
         """
                 load variable from npy to build the VGG
                 :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
@@ -348,7 +348,7 @@ class SPIGAN():
             red - self.VGG_MEAN[2],
         ])
         # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
-        with tf.variable_scope("encoder"):
+        with tf.variable_scope("encoder", reuse=reuse):
             with tf.variable_scope("encoder_1"):
                 self.conv1_1 = self.conv_layer_VGG(bgr, 3, 64, "conv1_1")
                 self.conv1_2 = self.conv_layer_VGG(self.conv1_1, 64, 64, "conv1_2")

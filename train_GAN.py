@@ -148,15 +148,21 @@ class MainProcess(object):
             self.loss_PI_g = tf.reduce_mean(tf.abs(self.p_out_g - self.pi))
             self.loss_PI = self.loss_PI_s + self.loss_PI_g
 
-            #
-
-
-            #regression loss
-            self.loss_reconst = tf.reduce_mean(tf.abs(self.rgb_out - self.anno))
+            #perceptual loss
+            self.conv1_2_s, self.conv2_2_s, self.conv3_2_s, self.conv4_2_s, self.conv5_2_s = self.model.vgg19(self.x_s)
+            self.conv1_2_g, self.conv2_2_g, self.conv3_2_g, self.conv4_2_g, self.conv5_2_g = self.model.vgg19(self.g_out)
+            self.conv1_2 = tf.reduce_mean(tf.abs(self.conv1_2_s - self.conv1_2_g))
+            self.conv2_2 = tf.reduce_mean(tf.abs(self.conv2_2_s - self.conv2_2_g))
+            self.conv3_2 = tf.reduce_mean(tf.abs(self.conv3_2_s - self.conv3_2_g))
+            self.conv4_2 = tf.reduce_mean(tf.abs(self.conv4_2_s - self.conv4_2_g))
+            self.conv5_2 = tf.reduce_mean(tf.abs(self.conv5_2_s - self.conv5_2_g))
+            self.loss_perc = self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2
 
             #total loss
-            self.loss_dis_total = self.loss_dis_f_forD + self.loss_dis_r_forD
-            self.loss_ref_total = self.loss_dis_f_forR + self.reconst_lambda * self.loss_reconst
+            self.loss_dis_total = self.loss_adv
+            self.loss_task_total = self.loss_task
+            self.loss_PI_total = self.loss_PI
+            self.loss_gen_total = self.loss_adv + self.loss_task + self.loss_PI
         # with tf.name_scope("score"):
         #     self.l_g = tf.reduce_mean(tf.abs(self.x - self.x_z_x), axis=(1,2,3))
         #     self.l_FM = tf.reduce_mean(tf.abs(self.drop3_r - self.drop3_re), axis=1)
@@ -186,13 +192,26 @@ class MainProcess(object):
         #     tn, tn_op = tf.metrics.true_negatives(tarT, probT)
         #     iou_target = tn / (tn + fp + fn + 1e-8)
         #     iou_back = tp / (tp + fp + fn + 1e-8)
-        tf.summary.scalar('self.loss_dis_r_forD', self.loss_dis_r_forD)
-        tf.summary.scalar('self.loss_dis_f_forD', self.loss_dis_f_forD)
-        tf.summary.scalar('self.loss_dis_f_forR', self.loss_dis_f_forR)
-        tf.summary.scalar('self.loss_regression', self.loss_reconst)
+        tf.summary.scalar('self.loss_dis_r', self.loss_dis_r)
+        tf.summary.scalar('self.loss_dis_f', self.loss_dis_f)
+        tf.summary.scalar('self.loss_adv', self.loss_adv)
+        tf.summary.scalar('self.loss_task_s', self.loss_task_s)
+        tf.summary.scalar('self.accuracy_s', self.accuracy_s)
+        tf.summary.scalar('self.loss_task_g', self.loss_task_g)
+        tf.summary.scalar('self.accuracy_g', self.accuracy_g)
+        tf.summary.scalar('self.loss_PI_s', self.loss_PI_s)
+        tf.summary.scalar('self.loss_PI_g', self.loss_PI_g)
+        tf.summary.scalar('self.loss_PI', self.loss_PI)
+        tf.summary.scalar('self.conv1_2', self.conv1_2)
+        tf.summary.scalar('self.conv2_2', self.conv2_2)
+        tf.summary.scalar('self.conv3_2', self.conv3_2)
+        tf.summary.scalar('self.conv4_2', self.conv4_2)
+        tf.summary.scalar('self.conv5_2', self.conv5_2)
+        tf.summary.scalar('self.loss_perc', self.loss_perc)
         tf.summary.scalar('self.loss_dis_total', self.loss_dis_total)
-        tf.summary.scalar('self.loss_ref_total', self.loss_ref_total)
-        # tf.summary.scalar('loss_enc_total', loss_enc_total)
+        tf.summary.scalar('self.loss_task_total', self.loss_task_total)
+        tf.summary.scalar('self.loss_PI_total', self.loss_PI_total)
+        tf.summary.scalar('self.loss_gen_total', self.loss_gen_total)
         self.merged = tf.summary.merge_all()
 
         # summa_tp = tf.summary.scalar('tp_BEP_cal', tp_BEP_cal)
@@ -206,38 +225,27 @@ class MainProcess(object):
 
         with tf.name_scope("graphkeys"):
             # t_vars = tf.trainable_variables()
-            ref_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="refiner")
-            # enc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="encoder")
+            gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
             dis_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
-            # update_ops_dec = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope="decoder")
-            # update_ops_enc = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope="encoder")
-            # update_ops_dis = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope="discriminator")
+            tas_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="task_predictor")
+            pri_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="privileged_network")
+
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         with tf.name_scope("train"):
-            # optimizer_dis = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5)
-            # with tf.control_dependencies(update_ops_dis):
-            #     train_dis = optimizer_dis.minimize(loss_dis_total, var_list=dis_vars, name='Adam_dis')
-            # optimizer_dec = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5)
-            # with tf.control_dependencies(update_ops_dec):
-            #     train_dec = optimizer_dec.minimize(loss_dec_total, var_list=dec_vars, name='Adam_dec')
-            # # train_dec = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(loss_dec_total, var_list=dec_vars
-            # #                                                                             , name='Adam_dec')
-            # optimizer_enc = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.5)
-            # with tf.control_dependencies(update_ops_enc):
-            #     train_enc = optimizer_enc.minimize(loss_enc_total, var_list=enc_vars, name='Adam_enc')
-            # # train_enc = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.5).minimize(loss_enc_total, var_list=enc_vars
-            # #                                                                             , name='Adam_enc')
             with tf.control_dependencies(update_ops):
-                self.train_dis = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_dis_total, var_list=dis_vars, name='Adam_dis')
-                self.train_ref = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(self.loss_ref_total, var_list=ref_vars, name='Adam_ref')
-                # train_enc = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.5).minimize(loss_enc_total, var_list=enc_vars, name='Adam_enc')
-            # train_enc = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.5).minimize(loss_enc_total, var_list=enc_vars
-            #                                                                             , name='Adam_enc')
+                self.train_dis = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_dis_total,
+                                                                                var_list=dis_vars, name='Adam_dis')
+                self.train_gen = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(self.loss_gen_total,
+                                                                                var_list=gen_vars, name='Adam_gen')
+                self.train_tas = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_task_total,
+                                                                                var_list=tas_vars, name='Adam_tas')
+                self.train_pri = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_PI_total,
+                                                                                var_list=pri_vars, name='Adam_pri')
+
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
         # sess.run(tf.local_variables_initializer())
-
         self.summary_writer = tf.summary.FileWriter(self.board_dir_name, self.sess.graph)
         # saver
         self.saver = tf.train.Saver()
@@ -245,57 +253,6 @@ class MainProcess(object):
         if self.restore_model_name != '':
             self.saver.restore(self.sess, self.restore_model_name)
             print("model ", self.restore_model_name, " is restored.")
-
-
-# elif COMPUTE_SCORE_FLAG: # compute score to decide threshold
-#     score_A_np = np.zeros((0), dtype=np.float32)
-#     for i in range(0, len(make_datasets.test_ng_file_tar_list), BATCH_SIZE):
-#         img_batch, _ = make_datasets.get_valid_data_for_1_batch(i, BATCH_SIZE, only_ng_flag=True)
-#         score_A_ = sess.run(score_A, feed_dict={x_: img_batch, is_training_: False})
-#         print("score_A_.shape, ", score_A_.shape)
-#         print("score_A_, ", score_A_)
-#         score_A_np = np.concatenate((score_A_np, score_A_))
-#     print("score_A_np.shape, ", score_A_np.shape)
-#     print("np.min(score_A_np), ", np.min(score_A_np))
-#     print("score_A_np, ", score_A_np)
-#     print("average score_A_np, ", np.mean(score_A_np))
-
-
-    def PREDICT_WITH_THRESHOLD_FLAG(self):
-        score_A_np = np.zeros((0, 2), dtype=np.float32)
-        score_A_pred = np.zeros((0, 1), dtype=np.float32)
-        score_A_tar = np.zeros((0, 1), dtype=np.float32)
-        val_data_num = len(make_datasets.test_file_tar_list)
-        for i in range(0, val_data_num, BATCH_SIZE):
-            img_batch, tars_batch = make_datasets.get_valid_data_for_1_batch(i, BATCH_SIZE)
-            score_A_ = sess.run(score_A, feed_dict={x_: img_batch, is_training_: False})
-            score_A_re = np.reshape(score_A_, (-1, 1))
-            tars_batch_re = np.reshape(tars_batch, (-1, 1))
-            score_A_np_tmp = np.concatenate((score_A_re, tars_batch_re), axis=1)
-            score_A_np = np.concatenate((score_A_np, score_A_np_tmp), axis=0)  # score_A_np = [[1.8, 0.], [0.8, 1.], ...]
-            score_A_pred = np.concatenate((score_A_pred, score_A_re), axis=0)
-            score_A_tar = np.concatenate((score_A_tar, tars_batch_re), axis=0)
-        score_A_pred_max = np.max(score_A_pred)
-        score_A_pred_min = np.min(score_A_pred)
-        score_A_pred_norm = (score_A_pred - score_A_pred_min) / ((score_A_pred_max - score_A_pred_min + 1e-8))
-        # auc_, update_op_auc_ = sess.run([auc, update_op_auc], feed_dict={score_A_pred_: score_A_pred_norm,
-        #                                                                  score_A_tar_: score_A_tar, is_training_: False})
-        # print("auc_, ", auc_)
-        # print("update_op_auc_, ", update_op_auc_)
-        tp, fp, tn, fn, precision, recall, f1, recall_normal, precision_normal, f1_normal = Utility.compute_precision_recall_with_threshold(
-            score_A_np, SCORE_A_THRESHOLD)
-        auc_log = Utility.make_ROC_graph(score_A_np, 'out_graph/' + LOGFILE_NAME, 0)
-        # BEFORE_BREAK_EVEN_POINTS = (recall_BEP, precision_BEP, f1_BEP)
-        Utility.save_histogram_of_norm_abnorm_score(score_A_np, LOGFILE_NAME, 0, standardize_flag=STANDARDIZE_FLAG)
-        # print("precision:{:.4f}".format(precision_BEP))
-        print("at threshold:{}, tp:{}, fp:{}, tn:{}, fn:{}, precision:{:.4f}, recall:{:.4f}, f1:{:.4f}, AUC:{:.4f},"
-            .format(SCORE_A_THRESHOLD, tp, fp, tn, fn, precision, recall, f1, auc_log))
-        print("precision_normal:{:.4f}, recall_normal:{:.4f}, f1_normal:{:.4f}"
-            .format(precision_normal, recall_normal, f1_normal))
-        log_list = [['tp', 'fp', 'tn', 'fn', 'precision', 'recall', 'f1', 'threshold', 'AUC', 'precision_normal', 'recall_normal', 'f1_normal']]
-        log_list.append([tp, fp, tn, fn, precision, recall, f1, SCORE_A_THRESHOLD, auc_log, precision_normal, recall_normal, f1_normal])
-        # print("log_list, ", log_list)
-        Utility.save_list_to_csv(log_list, 'log/' + LOGFILE_NAME + '_metrics.csv')
 
 
     def train(self):#training phase
@@ -438,67 +395,48 @@ if __name__ == '__main__':
         parser.add_argument('--batch_size', '-b', type=int, default=10, help='Number of images in each mini-batch')
         parser.add_argument('--log_file_name', '-lf', type=str, default='log19021501', help='log file name')
         parser.add_argument('--epoch', '-e', type=int, default=100, help='epoch')
-        parser.add_argument('--base_channel', '-bc', type=int, default=8, help='number of base channel')
-        parser.add_argument('--noise_unit_num', '-nn', type=int, default=500, help='number of noise unit')
-        parser.add_argument('--train_dir_name', '-dn', type=str, default='../../Efficient-GAN/train_png_data',
-                            help='file name of training data')
-        # parser.add_argument('--additional_train_dir_name', '-adn', type=str, default='',
-        #                     help='file name of training data2')
-        # parser.add_argument('--test_ok_dir_name', '-to', type=str, default='../../Efficient-GAN/test_png_data/ok',
-        #                     help='file name of test ok data')
-        # parser.add_argument('--additional_test_ok_dir_name', '-ato', type=str, default='',
-        #                     help='file name of test ok data2')
-        parser.add_argument('--test_dir_name', '-tn', type=str, default='../../Efficient-GAN/test_png_data/ng',
-                            help='file name of test data')
-        parser.add_argument('--valid_span', '-vs', type=int, default=10, help='validation span')
-        # parser.add_argument('--train_flag', '-tf', action="store_false", default=True, help='train or not')
-        # parser.add_argument('--export_flag', '-ef', action="store_true", default=False, help='export phase')
-        # parser.add_argument('--compute_score_flag', '-cf', action="store_true", default=False,
-        #                     help='compute_score_phase')
-        # parser.add_argument('--predict_with_threshold_flag', '-pf', action="store_true", default=False,
-        #                     help='predict_with_threshold_phase')
+        parser.add_argument('--syn_dir_name', '-sdn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/RGB/',
+                            help='path to synthesis data')
+        parser.add_argument('--real_train_dir_name', '-rtn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/train/',
+                            help='path to real training data')
+        parser.add_argument('--real_val_dir_name', '-rvn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/cityScape/data/leftImg8bit/val/',
+                            help='path to real validation data')
+        parser.add_argument('--syn_seg_dir_name', '-ssn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/RAND_CITYSCAPES/Depth/Depth/',
+                            help='path to synthesis label data')
+        parser.add_argument('--real_seg_dir_name', '-rsn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/Parsed_CityScape/val/',
+                            help='path to real label data')
+        parser.add_argument('--depth_dir_name', '-ddn', type=str, default='/media/webfarmer/HDCZ-UT/dataset/SYNTHIA_RAND_CITYSCAPES/segmentation_annotation/SYNTHIA/GT/parsed_LABELS/',
+                            help='path to depth data')
+        parser.add_argument('--valid_span', '-vs', type=int, default=1, help='validation span')
         parser.add_argument('--restore_model_name', '-rmn', type=str, default='', help='restored model name')
-        parser.add_argument('--save_model_span', '-ss', type=int, default=1000, help='span of saving model')
-        # parser.add_argument('--save_model_iterate_span', '-sis', type=int, default=10000,
-        #                     help='span of saving model by iteration')
-
-        # parser.add_argument('--ok_ng_same_folder_flag', '-sf', action="store_true", default=False,
-        #                     help='the case that ok and ng images are in a same folder')
-        # parser.add_argument('--export_output_dir', '-eod', type=str, default='./export', help='export output directory')
-        # parser.add_argument('--standardize_flag', '-sdf', action="store_false", default=True, help='in make histogram, '
-        #                                                                                            'do standardizing or not')
-        # parser.add_argument('--score_A_threshold', '-sat', type=float, default=0.36164582, help='threshold of score A')
+        parser.add_argument('--save_model_span', '-ss', type=int, default=10, help='span of saving model')
+        parser.add_argument('--base_channel', '-bc', type=int, default=8, help='number of base channel')
 
         return parser.parse_args()
     args = parser()
 
     main_process = MainProcess(batch_size=args.batch_size, log_file_name=args.log_file_name, epoch=args.epoch,
-                               base_channel=args.base_channel, noise_unit_num=args.noise_unit_num,
-                               train_dir_name=args.train_dir_name, test_dir_name=args.test_dir_name, valid_span=args.valid_span,
-                               restored_model_name=args.restored_model_name,
-                 save_model_span=args.save_model_span)
-                               # predict_img_span=args.predict_img_span,
-                 #               restart_epoch=args.restart_epoch, predict_image=args.predict_image,
-                 # predict_mask_image=args.predict_mask_image, restore_mode=args.restore_mode, save_mode=args.save_mode,
-                 # predict_by_spec_thr=args.predict_by_spec_thr, img_size_h=args.img_size_h, img_size_w=args.img_size_w,
-                 #               img_width_be_crop=args.img_size_be_crop_w, img_height_be_crop=args.img_size_be_crop_h,
-                 # crop_flag=True, val_num=5, flip_flag=True, rotate_flag=False,
-                 # mixup_flag=False, mixup_rate=1.0, mixup_alpha=0.4, random_erasing_flag=True, image_2_size_magn=16,
-                 # prob_verif_flag=False, learning_rate=args.learning_rate, recall_thr_num=args.recall_thr_num,
-                 #               evaluate_files_phase=args.evaluate_files_phase)
-
-    if args.predict_no_anno_phase:
-        main_process.predict_no_anno_Model()
-
-    # elif args.predict_phase:
-    #     main_process.predict()
-
-    elif args.predict_no_anno_2size_phase:
-        main_process.predict_no_anno_2size()
-
-    elif args.evaluate_files_phase:
-        main_process.evaluate_specified_files()
-
-    else:
-        main_process.trainModel()
+                               syn_dir_name=args.syn_dir_name, real_train_dir_name=args.real_train_dir_name,
+                               real_val_dir_name=args.real_val_dir_name, syn_seg_dir_name=args.syn_seg_dir_name,
+                               real_seg_dir_name=args.real_seg_dir_name, depth_dir_name=args.depth_dir_name,
+                               valid_span=args.valid_span, restored_model_name=args.restored_model_name,
+                               save_model_span=args.save_model_span, base_channel=args.base_channel)
+    # batch_size = 8, log_file_name = 'log01', epoch = 100,
+    # syn_dir_name = '', real_train_dir_name = '', real_val_dir_name = '', syn_seg_dir_name = '', real_seg_dir_name = '',
+    # depth_dir_name = '', valid_span = 1, restored_model_name = '', save_model_span = 10, base_channel = 16
+    # if args.predict_no_anno_phase:
+    #     main_process.predict_no_anno_Model()
+    #
+    # # elif args.predict_phase:
+    # #     main_process.predict()
+    #
+    # elif args.predict_no_anno_2size_phase:
+    #     main_process.predict_no_anno_2size()
+    #
+    # elif args.evaluate_files_phase:
+    #     main_process.evaluate_specified_files()
+    #
+    # else:
+    #     main_process.trainModel()
+    main_process.train()
 
