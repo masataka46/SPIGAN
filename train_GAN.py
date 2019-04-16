@@ -8,43 +8,38 @@ from make_datasets import Make_dataset as Make_datasets
 import time
 
 class MainProcess(object):
-    def __init__(self, batch_size=8, log_file_name='log01', epoch=100, base_channel=16, noise_unit_num=200,
-                               train_dir_name='', test_dir_name='', valid_span=1, restored_model_name='',
-                            save_model_span=10):
+    def __init__(self, batch_size=8, log_file_name='log01', epoch=100,
+                 syn_dir_name='', real_train_dir_name='', real_val_dir_name='', syn_seg_dir_name='', real_seg_dir_name='',
+                 depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16):
         #global variants
         self.batch_size = batch_size
         self.logfile_name = log_file_name
         self.epoch = epoch
-        self.train_dir_name = train_dir_name
-        self.test_dir_name = test_dir_name
-        self.img_width = 128
-        self.img_height = 128
-        self.img_width_be_crop = 128
-        self.img_height_be_crop = 128
+        self.syn_dir_name = syn_dir_name
+        self.real_train_dir_name = real_train_dir_name
+        self.real_val_dir_name = real_val_dir_name
+        self.syn_seg_dir_name = syn_seg_dir_name
+        self.real_seg_dir_name = real_seg_dir_name
+        self.depth_dir_name = depth_dir_name
+        self.img_width = 320
+        self.img_height = 320
+        self.img_width_be_crop_syn = 640
+        self.img_width_be_crop_real = 760
+        self.img_height_be_crop = 380
         self.img_channel = 3
-        self.anno_channel = 4
+        self.anno_channel = 19
+        self.depth_channel = 1
         self.base_channel = base_channel
-        self.noise_unit_num = noise_unit_num
-        # NOISE_MEAN = 0.0
-        # NOISE_STDDEV = 1.0
         self.test_data_sample = 5 * 5
         self.l2_norm = 0.001
         self.keep_prob_rate = 0.5
         self.seed = 1234
-        # SCORE_ALPHA = 0.9 # using for cost function
-        self.crop_flag = False
-        # STANDARDIZE_FLAG = args.standardize_flag
+        self.crop_flag = True
         self.valid_span = valid_span
-        # EXPORT_FLAG = args.export_flag
-        # COMPUTE_SCORE_FLAG = args.compute_score_flag
-        # PREDICT_WITH_THRESHOLD_FLAG = args.predict_with_threshold_flag
-        # SCORE_A_THRESHOLD = args.score_A_threshold
         np.random.seed(seed=self.seed)
         self.board_dir_name = 'tensorboard/' + self.logfile_name
         self.out_img_dir = 'out_images' #output image file
         self.out_model_dir = 'out_models' #output model file
-        # CYCLE_LAMBDA = 1.0
-        # AUC_COORD_NUM = 200
         self.restore_model_name = restored_model_name
         self.save_model_span = save_model_span
         self.reconst_lambda = 0.1
@@ -80,15 +75,23 @@ class MainProcess(object):
         except:
             pass
 
-        self.model = Model(self.noise_unit_num, self.img_channel, self.anno_channel, self.seed, self.base_channel, self.keep_prob_rate)
+        self.model = Model(self.img_channel, self.anno_channel, self.seed, self.base_channel, self.keep_prob_rate)
 
+        '''
+        syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
+                 img_width, img_height, img_width_be_crop_syn, img_width_be_crop_real, img_height_be_crop
+        '''
+        self.make_datasets = Make_datasets(self.syn_dir_name, self.real_train_dir_name, self.real_val_dir_name, self.syn_seg_dir_name,
+                                           self.real_seg_dir_name, self.depth_dir_name, self.img_width, self.img_height,
+                                  self.img_width_be_crop_syn, self.img_width_be_crop_real, self.img_height_be_crop,
+                                           self.seed, self.crop_flag)
 
-        self.make_datasets = Make_datasets(self.train_dir_name, self.test_dir_name, self.img_width, self.img_height,
-                                  self.img_width_be_crop, self.img_height_be_crop, self.seed, self.crop_flag)
-
-        self.back = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='back')  # back image
-        self.anno = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.anno_channel], name='anno')  # annotation image
-        self.real_img = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='real_image')  # real image
+        self.x_s = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='x_s')  # synthesis image
+        self.x_r = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='x_r')  # real image
+        self.seg = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.anno_channel], name='seg_label')
+        self.pi = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.depth_channel], name='depth_label')
+        self.tar_d_r = tf.placeholder(tf.float32, [None, 1], name='target_discriminator_for_real')
+        self.tar_d_f = tf.placeholder(tf.float32, [None, 1], name='target_discriminator_for_fake')
 
         # self.d_dis_f = tf.placeholder(tf.float32, [None, 1], name='d_dis_f') #target of discriminator related to generator
         # self.d_dis_r = tf.placeholder(tf.float32, [None, 1], name='d_dis_r') #target of discriminator related to real image
@@ -106,27 +109,48 @@ class MainProcess(object):
         # self.score_A_pred = tf.placeholder(tf.float32, [None, 1], name='score_A_pred')
         # self.score_A_tar = tf.placeholder(tf.float32, [None, 1], name='score_A_tar')
 
-        with tf.variable_scope('refiner_model'):
-            self.rgb_out, self.alpha_out = self.model.refiner(self.back, self.anno, reuse=False, is_training=self.is_training)
-
-        # with tf.variable_scope('decoder_model'):
-        #     self.x_dec = self.model.decoder(self.z, reuse=False, is_training=self.is_training)
-        #     self.x_z_x = self.model.decoder(self.z_enc, reuse=True, is_training=self.is_training) # for cycle consistency
-
-        with tf.variable_scope('paste_back_and_anno'):
-            self.refined_img = self.rgb_out * self.alpha_out + self.back * (1. - self.alpha_out)
+        with tf.variable_scope('generator_model'):
+            self.g_out = self.model.generator(self.x_s, reuse=False, is_training=self.is_training)
 
         with tf.variable_scope('discriminator_model'):
             #stream around discriminator
-            self.drop6_r, self.sigmoid_r = self.model.discriminator(self.real_img, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #real pair
-            self.drop6_f, self.sigmoid_f = self.model.discriminator(self.refined_img, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #real pair
-            # self.drop6_re, self.sigmoid_re = self.model.discriminator(self.x_z_x, self.z_enc, reuse=True, is_training=self.is_training) #fake pair
+            self.d_out_r = self.model.discriminator(self.x_r, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #real
+            self.d_out_f = self.model.discriminator(self.g_out, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #fake
+
+        with tf.variable_scope('task_predictor_model'):
+            self.t_out_s = self.model.task_predictor(self.x_s, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #synthesis
+            self.t_out_g = self.model.task_predictor(self.g_out, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #generated
+
+        with tf.variable_scope('privileged_network_model'):
+            self.p_out_s = self.model.privileged_network(self.x_s, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #synthesis
+            self.p_out_g = self.model.privileged_network(self.g_out, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #generated
+
 
         with tf.name_scope("loss"):
             #adversarial loss
-            self.loss_dis_r_forD = - tf.reduce_mean(tf.log(tf.clip_by_value(1. - self.sigmoid_r, 1e-10, 1.0)), name='Loss_dis_refine') #loss related to real for Discriminator
-            self.loss_dis_f_forD = - tf.reduce_mean(tf.log(tf.clip_by_value(self.sigmoid_f, 1e-10, 1.0)), name='Loss_dis_real') #loss related to refined for Discriminator
-            self.loss_dis_f_forR = - tf.reduce_mean(tf.log(tf.clip_by_value(1. - self.sigmoid_f, 1e-10, 1.0)), name='Loss_dis_refine') #loss related to refined for Refiner
+            self.loss_dis_r = tf.reduce_mean(tf.square(self.d_out_r - self.tar_d_r), name='Loss_dis_real') #loss related to real
+            self.loss_dis_f = tf.reduce_mean(tf.square(self.d_out_f - self.tar_d_f), name='Loss_dis_fake') #loss related to fake
+            self.loss_adv = self.loss_dis_r + self.loss_dis_f
+
+            #task prediction loss
+            self.loss_task_s = - tf.reduce_mean(tf.multiply(self.seg, tf.log(tf.clip_by_value(self.t_out_s, 1e-10, 1.0))),
+                                                 name='task_prediction_loss_for_synthesis')
+            correct_prediction_s = tf.equal(tf.argmax(self.t_out_s, 3), tf.argmax(self.seg, 3))
+            self.accuracy_s = tf.reduce_mean(tf.cast(correct_prediction_s, "float"))
+            self.loss_task_g = - tf.reduce_mean(tf.multiply(self.seg, tf.log(tf.clip_by_value(self.t_out_g, 1e-10, 1.0))),
+                                                 name='task_prediction_loss_for_generated')
+            correct_prediction_g = tf.equal(tf.argmax(self.t_out_g, 3), tf.argmax(self.seg, 3))
+            self.accuracy_g = tf.reduce_mean(tf.cast(correct_prediction_g, "float"))
+            self.loss_task = self.loss_task_s + self.loss_task_g
+
+            #PI regularization
+            self.loss_PI_s = tf.reduce_mean(tf.abs(self.p_out_s - self.pi))
+            self.loss_PI_g = tf.reduce_mean(tf.abs(self.p_out_g - self.pi))
+            self.loss_PI = self.loss_PI_s + self.loss_PI_g
+
+            #
+
+
             #regression loss
             self.loss_reconst = tf.reduce_mean(tf.abs(self.rgb_out - self.anno))
 
