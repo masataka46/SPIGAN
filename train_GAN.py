@@ -168,7 +168,7 @@ class MainProcess(object):
             self.loss_dis_total = self.loss_alpha * self.loss_adv
             self.loss_task_total = self.loss_beta * self.loss_task
             self.loss_PI_total = self.loss_gamma * self.loss_PI
-            self.loss_gen_total = self.loss_alpha * self.loss_adv + self.loss_beta * self.loss_task + \
+            self.loss_gen_total = self.loss_alpha * self.loss_dis_f + self.loss_beta * self.loss_task + \
                                   self.loss_gamma * self.loss_PI + self.loss_delta * self.loss_perc
         # with tf.name_scope("score"):
         #     self.l_g = tf.reduce_mean(tf.abs(self.x - self.x_z_x), axis=(1,2,3))
@@ -286,7 +286,7 @@ class MainProcess(object):
             sum_loss_PI_total = np.float32(0)
 
 
-            len_data_syn, len_data_real = self.make_datasets.make_data_for_1_epoch()
+            len_data_syn = self.make_datasets.make_data_for_1_epoch()
 
             for i in range(0, len_data_syn, self.batch_size):
                 if i % (self.batch_size * 100) == 0:

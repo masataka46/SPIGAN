@@ -155,11 +155,11 @@ class Make_dataset():
 
     def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop_syn, width_be_crop_real, 
                   height_be_crop, seg_dir, depth_dir, crop_flag=True):
-        print("width_be_crop_syn, ", width_be_crop_syn)
-        print("width_be_crop_real, ", width_be_crop_real)
-        print("height_be_crop, ", height_be_crop)
-        print("width, ", width)
-        print("height, ", height)
+        # print("width_be_crop_syn, ", width_be_crop_syn)
+        # print("width_be_crop_real, ", width_be_crop_real)
+        # print("height_be_crop, ", height_be_crop)
+        # print("width, ", width)
+        # print("height, ", height)
         syns, reals, segs, depths = [], [], [], []
         for num, (file_syn1, file_real1) in enumerate(zip(file_syn_list, file_real_list)):
             syn = Image.open(file_syn1)                        #RGB 760h  x 1280w x 3c -> 380h x 640w x 3c
@@ -216,14 +216,14 @@ class Make_dataset():
     def make_data_for_1_epoch(self):
         self.file_syn_list_1_epoch = self.file_syn_list
         random.shuffle(self.file_syn_list_1_epoch)
-        self.file_real_train_list_1_epoch = self.file_real_train_list
-        random.shuffle(self.file_real_train_list_1_epoch)
-        return len(self.file_syn_list_1_epoch), len(self.file_real_train_list_1_epoch)
+        # self.file_real_train_list_1_epoch = self.file_real_train_list
+        # random.shuffle(self.file_real_train_list_1_epoch)
+        return len(self.file_syn_list_1_epoch)
 
     def get_data_for_1_batch(self, i, batchsize):
         filename_syn_batch = self.file_syn_list_1_epoch[i:i + batchsize]
-        i_real = i % self.file_real_train_list_num
-        filename_real_batch = self.file_real_train_list_1_epoch[i_real:i_real + batchsize]
+        # i_real = i % self.file_real_train_list_num
+        filename_real_batch = random.sample(self.file_real_train_list, len(filename_syn_batch))
         syns_np, segs_np, depths_np, reals_np = self.read_data(filename_syn_batch, filename_real_batch, self.img_width, self.img_height,
                                    self.img_w_be_crop_syn, self.img_w_be_crop_real, self.img_h_be_crop, self.syn_seg_dir_name,
                                    self.depth_dir_name, crop_flag=True)
