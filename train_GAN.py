@@ -10,7 +10,8 @@ import time
 class MainProcess(object):
     def __init__(self, batch_size=8, log_file_name='log01', epoch=100,
                  syn_dir_name='', real_train_dir_name='', real_val_dir_name='', syn_seg_dir_name='', real_seg_dir_name='',
-                 depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16, path_to_vgg19=''):
+                 depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16,
+                 path_to_vgg19='', output_img_span=1):
         #global variants
         self.batch_size = batch_size
         self.logfile_name = log_file_name
@@ -47,6 +48,7 @@ class MainProcess(object):
         self.out_model_dir = 'out_models' #output model file
         self.restore_model_name = restored_model_name
         self.save_model_span = save_model_span
+        self.output_img_span = output_img_span
         self.reconst_lambda = 0.1
         # SAVE_MODEL_ITERATE_SPAN = args.save_model_iterate_span
         # BEFORE_BREAK_EVEN_POINTS = np.ones((8), dtype=np.float32) * 0.5 # (recall, precision, f1)
@@ -97,7 +99,7 @@ class MainProcess(object):
         self.pi = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.depth_channel], name='depth_label')
         self.tar_d_r = tf.placeholder(tf.float32, [None, self.img_height//8, self.img_width//8, 1], name='target_discriminator_for_real')
         self.tar_d_f = tf.placeholder(tf.float32, [None, self.img_height//8, self.img_width//8, 1], name='target_discriminator_for_fake')
-
+        self.x_r_v = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='x_r_v')  # real image to T
         # self.d_dis_f = tf.placeholder(tf.float32, [None, 1], name='d_dis_f') #target of discriminator related to generator
         # self.d_dis_r = tf.placeholder(tf.float32, [None, 1], name='d_dis_r') #target of discriminator related to real image
         self.tp_BEP = tf.placeholder(tf.float32, shape=(), name='tp_BEP')
@@ -111,20 +113,18 @@ class MainProcess(object):
         self.is_training = tf.placeholder(tf.bool, name = 'is_training')
         self.keep_prob = tf.placeholder(tf.float32, shape=(), name='keep_prob')
 
-        # self.score_A_pred = tf.placeholder(tf.float32, [None, 1], name='score_A_pred')
-        # self.score_A_tar = tf.placeholder(tf.float32, [None, 1], name='score_A_tar')
-
         with tf.variable_scope('generator_model'):
             self.g_out = self.model.generator(self.x_s, reuse=False, is_training=self.is_training)
 
         with tf.variable_scope('discriminator_model'):
-            #stream around discriminator
             self.d_out_r = self.model.discriminator(self.x_r, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #real
             self.d_out_f = self.model.discriminator(self.g_out, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #fake
 
         with tf.variable_scope('task_predictor_model'):
             self.t_out_s = self.model.task_predictor(self.x_s, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #synthesis
             self.t_out_g = self.model.task_predictor(self.g_out, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #generated
+            self.t_out_r = self.model.task_predictor(self.x_r_v, reuse=True, is_training=self.is_training, keep_prob=self.keep_prob) #real
+
 
         with tf.variable_scope('privileged_network_model'):
             self.p_out_s = self.model.privileged_network(self.x_s, reuse=False, is_training=self.is_training, keep_prob=self.keep_prob) #synthesis
@@ -427,6 +427,16 @@ class MainProcess(object):
                 for j in range(len(summa_result)):
                     summary_writer.add_summary(summa_result[j], epoch)
             '''
+            if epoch % self.output_img_span == 0:
+                print("output image")
+                syns_np, segs_np, depths_np, reals_np, real_segs_np = self.make_datasets.get_data_for_1_batch_for_output()
+                t_out_s_, t_out_g_, g_out_ = self.sess.run( [self.t_out_s, self.t_out_g, self.g_out],
+                                                    feed_dict={self.x_s: syns_np, self.is_training: False, self.keep_prob: 1.0})
+                t_out_r_ = self.sess.run( self.t_out_r,
+                                                    feed_dict={self.x_r_v: reals_np, self.is_training: False, self.keep_prob: 1.0})
+
+                
+
             # save model
             if epoch % self.save_model_span == 0 and epoch != 0:
                 saver2 = tf.train.Saver()
@@ -455,8 +465,9 @@ if __name__ == '__main__':
                             help='path to vgg19 parameters')
         parser.add_argument('--valid_span', '-vs', type=int, default=1, help='validation span')
         parser.add_argument('--restore_model_name', '-rmn', type=str, default='', help='restored model name')
-        parser.add_argument('--save_model_span', '-ss', type=int, default=10, help='span of saving model')
+        parser.add_argument('--save_model_span', '-ss', type=int, default=100, help='span of saving model')
         parser.add_argument('--base_channel', '-bc', type=int, default=8, help='number of base channel')
+        parser.add_argument('--output_img_span', '-ois', type=int, default=1, help='output image span')
 
         return parser.parse_args()
     args = parser()
@@ -466,7 +477,8 @@ if __name__ == '__main__':
                                real_val_dir_name=args.real_val_dir_name, syn_seg_dir_name=args.syn_seg_dir_name,
                                real_seg_dir_name=args.real_seg_dir_name, depth_dir_name=args.depth_dir_name,
                                valid_span=args.valid_span, restored_model_name=args.restore_model_name,
-                               save_model_span=args.save_model_span, base_channel=args.base_channel, path_to_vgg19=args.path_to_vgg)
+                               save_model_span=args.save_model_span, base_channel=args.base_channel,
+                               path_to_vgg19=args.path_to_vgg, output_img_span=args.output_img_span)
     # batch_size = 8, log_file_name = 'log01', epoch = 100,
     # syn_dir_name = '', real_train_dir_name = '', real_val_dir_name = '', syn_seg_dir_name = '', real_seg_dir_name = '',
     # depth_dir_name = '', valid_span = 1, restored_model_name = '', save_model_span = 10, base_channel = 16

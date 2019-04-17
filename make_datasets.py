@@ -9,7 +9,7 @@ class Make_dataset():
 
     def __init__(self, syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
                  img_width, img_height, img_width_be_crop_syn, img_width_be_crop_real, img_height_be_crop,
-                 seed=1234, crop_flag=True):
+                 seed=1234, crop_flag=True, output_img_num=5):
         '''
         Parsed_CityScape---train---:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 19, 21,    255]
         GT---parsed_LABELS------:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22]
@@ -27,6 +27,7 @@ class Make_dataset():
         self.img_h_be_crop = img_height_be_crop
         self.seed = seed
         self.crop_flag = crop_flag
+        self.output_img_num = output_img_num
         np.random.seed(self.seed)
         print("self.syn_dir_name, ", self.syn_dir_name)
         print("self.real_train_dir_name, ", self.real_train_dir_name)
@@ -57,37 +58,10 @@ class Make_dataset():
         print("self.file_syn_list_num, ", self.file_syn_list_num)
         print("self.file_real_train_list_num, ", self.file_real_train_list_num)
         print("self.file_real_val_list_num, ", self.file_real_val_list_num)
-        # self.train_file_tar_list = self.add_target_to_list(file_train_list, 0)
-        # random.shuffle(self.train_file_tar_list)
-        # print("len(train_file_tar_list), ", len(self.train_file_tar_list))
-        #
-        # self.test_ok_dir_name = test_ok_dir_name
-        # print("self.test_ok_dir_name, ", self.test_ok_dir_name)
-        # file_test_ok_list = self.get_file_names(self.test_ok_dir_name)
-        # file_test_ok_list = self.select_only_png(file_test_ok_list)
-        # file_test_ok_list = self.delete_destroyed_file(file_test_ok_list)
-        #
-        # if add_test_ok_dir_name != '':
-        #     self.add_test_ok_dir_name = add_test_ok_dir_name
-        #     print("self.add_test_ok_dir_name, ", self.add_test_ok_dir_name)
-        #     file_test_ok_list2 = self.get_file_names(self.add_test_ok_dir_name)
-        #     file_test_ok_list2 = self.select_only_png(file_test_ok_list2)
-        #     file_test_ok_list2 = self.delete_destroyed_file(file_test_ok_list2)
-        #     file_test_ok_list = file_test_ok_list + file_test_ok_list2
-        #
-        # self.test_ok_file_tar_list = self.add_target_to_list(file_test_ok_list, 0)
-        # print("len(self.test_ok_file_tar_list), ", len(self.test_ok_file_tar_list))
-        #
-        # self.test_ng_dir_name = test_ng_dir_name
-        # print("self.test_ng_dir_name, ", self.test_ng_dir_name)
-        # file_test_ng_list = self.get_file_names(self.test_ng_dir_name)
-        # file_test_ng_list = self.select_only_png(file_test_ng_list)
-        # self.test_ng_file_tar_list = self.add_target_to_list(file_test_ng_list, 1)
-        # print("len(self.test_ng_file_tar_list), ", len(self.test_ng_file_tar_list))
-        #
-        # self.test_file_tar_list = self.test_ok_file_tar_list + self.test_ng_file_tar_list
-        # print("len(self.test_file_tar_list), ", len(self.test_file_tar_list))
-        # # print("self.test_file_tar_list[-1]['tar'], ", self.test_file_tar_list[-1]['tar'])
+
+        #for validation
+        self.file_syn_list_val = random.sample(self.file_syn_list, self.output_img_num)
+        self.file_real_val_list_selected = random.sample(self.file_real_val_list, self.output_img_num)
 
 
     def get_file_names(self, dir_name):
@@ -143,6 +117,16 @@ class Make_dataset():
         seg_np_mod = np.where(seg_np_mod == 22, 13, seg_np_mod)
         return seg_np_mod
 
+    def convert_int_for_real(self, seg_np):
+        #    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 19, 21,    255] ->
+        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 16, 18,    13]
+        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22] ->
+        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
+        seg_np_mod = np.where(seg_np == 19, 16, seg_np)
+        seg_np_mod = np.where(seg_np_mod == 21, 18, seg_np_mod)
+        seg_np_mod = np.where(seg_np_mod == 255, 13, seg_np_mod)
+        return seg_np_mod
+
 
 
     def add_target_to_list(self, file_list, tar_num):
@@ -154,13 +138,13 @@ class Make_dataset():
 
 
     def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop_syn, width_be_crop_real, 
-                  height_be_crop, seg_dir, depth_dir, crop_flag=True):
+                  height_be_crop, seg_dir, depth_dir, crop_flag=True, real_val_flag=False, real_val_dir=''):
         # print("width_be_crop_syn, ", width_be_crop_syn)
         # print("width_be_crop_real, ", width_be_crop_real)
         # print("height_be_crop, ", height_be_crop)
         # print("width, ", width)
         # print("height, ", height)
-        syns, reals, segs, depths = [], [], [], []
+        syns, reals, segs, depths, real_segs = [], [], [], [], []
         for num, (file_syn1, file_real1) in enumerate(zip(file_syn_list, file_real_list)):
             syn = Image.open(file_syn1)                        #RGB 760h  x 1280w x 3c -> 380h x 640w x 3c
             syn_np = np.asarray(syn)
@@ -179,6 +163,14 @@ class Make_dataset():
             real_np = np.asarray(real)
             real_np = cv2.resize(real_np, (width_be_crop_real, height_be_crop))
 
+            if real_val_flag:
+                real_dir_name, real_file_name_only = file_real1.rsplit('/', 1)
+                real_seg = Image.open(real_val_dir + real_file_name_only)
+                real_seg_np = np.asarray(real_seg)
+                real_seg_np = cv2.resize(real_seg_np, (width_be_crop_syn, height_be_crop), interpolation=cv2.INTER_NEAREST)
+            else:
+                real_seg_np = None
+
             if crop_flag:
                 w_margin_s = np.random.randint(0, width_be_crop_syn - width + 1)
                 w_margin_r = np.random.randint(0, width_be_crop_real - width + 1)
@@ -188,6 +180,7 @@ class Make_dataset():
                 seg_np = seg_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width]
                 depth_np = depth_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width, :]
                 real_np = real_np[h_margin:h_margin + height, w_margin_r:w_margin_r + width, :]
+
 
             syn_np = syn_np.astype(np.float32) / 255.
             seg_np = (self.convert_int(seg_np)).astype(np.int32)
@@ -199,12 +192,23 @@ class Make_dataset():
             segs.append(seg_np)
             depths.append(depth_np)
             reals.append(real_np)
+            if real_val_flag:
+                real_seg_np = (self.convert_int_for_real(real_seg_np)).astype(np.int32)
+                real_segs.append(real_seg_np)
 
-        syns_np = np.asarray(syns, dtype=np.float32)
-        segs_np = np.asarray(segs, dtype=np.int32)
-        depths_np = np.asarray(depths, dtype=np.float32)
-        reals_np = np.asarray(reals, dtype=np.float32)
-        return syns_np, segs_np, depths_np, reals_np
+        if real_val_flag:
+            syns_np = np.asarray(syns, dtype=np.float32)
+            segs_np = np.asarray(segs, dtype=np.int32)
+            depths_np = np.asarray(depths, dtype=np.float32)
+            reals_np = np.asarray(reals, dtype=np.float32)
+            real_segs_np = np.asarray(real_segs, dtype=np.int32)
+            return syns_np, segs_np, depths_np, reals_np, real_segs_np
+        else:
+            syns_np = np.asarray(syns, dtype=np.float32)
+            segs_np = np.asarray(segs, dtype=np.int32)
+            depths_np = np.asarray(depths, dtype=np.float32)
+            reals_np = np.asarray(reals, dtype=np.float32)
+            return syns_np, segs_np, depths_np, reals_np
 
 
     def normalize_data(self, data):
@@ -230,14 +234,31 @@ class Make_dataset():
         # images_n = self.normalize_data(images)
         return syns_np, segs_np, depths_np, reals_np
 
-    def get_valid_data_for_1_batch(self, i, batchsize, only_ng_flag=False):
-        if only_ng_flag:
-            filename_batch = self.test_ng_file_tar_list[i:i + batchsize]
-        else:
-            filename_batch = self.test_file_tar_list[i:i + batchsize]
-        images, tars = self.read_data(filename_batch, self.img_width, self.img_height, self.img_w_be_crop, self.img_h_be_crop, False)
-        images_n = self.normalize_data(images)
-        return images_n, tars
+    def get_valid_data_for_1_batch(self, i, batchsize):
+        filename_syn_batch = self.file_syn_list_val
+        # i_real = i % self.file_real_train_list_num
+        filename_real_batch = random.sample(self.file_real_train_list, len(filename_syn_batch))
+        syns_np, segs_np, depths_np, reals_np, real_segs_np = self.read_data(filename_syn_batch, filename_real_batch,
+                                                                             self.img_width, self.img_height,
+                                                               self.img_w_be_crop_syn, self.img_w_be_crop_real,
+                                                               self.img_h_be_crop, self.syn_seg_dir_name,
+                                                               self.depth_dir_name, crop_flag=False, real_val_flag=True,
+                                                               real_val_dir=self.real_val_dir_name)
+        # images_n = self.normalize_data(images)
+        return syns_np, segs_np, depths_np, reals_np, real_segs_np
+
+    def get_data_for_1_batch_for_output(self):
+        filename_syn_batch = self.file_syn_list_val
+        # i_real = i % self.file_real_train_list_num
+        filename_real_batch = self.file_real_val_list_selected
+        syns_np, segs_np, depths_np, reals_np = self.read_data(filename_syn_batch, filename_real_batch, self.img_width,
+                                                               self.img_height,
+                                                               self.img_w_be_crop_syn, self.img_w_be_crop_real,
+                                                               self.img_h_be_crop, self.syn_seg_dir_name,
+                                                               self.depth_dir_name, crop_flag=False)
+        # images_n = self.normalize_data(images)
+        return syns_np, segs_np, depths_np, reals_np
+
 
     def make_random_z_with_norm(self, mean, stddev, data_num, unit_num):
         norms = np.random.normal(mean, stddev, (data_num, unit_num))
@@ -263,29 +284,29 @@ class Make_dataset():
         return tar_oneHot
 
 
-    def read_tfrecord(self, filename, img_h, img_w, img_c, class_num):
-        filename1 = tf.placeholder(tf.string)
-        filename_queue = tf.train.string_input_producer([filename])
-        reader = tf.TFRecordReader()
-        _, serialized_example = reader.read(filename_queue)
-
-        features = tf.parse_single_example(
-            serialized_example,
-            features={
-                'image': tf.FixedLenFeature([], tf.string),
-                'label': tf.FixedLenFeature([], tf.string)
-            })
-
-        image = tf.decode_raw(features['image'], tf.float32)
-        label = tf.decode_raw(features['label'], tf.float64)
-
-        sess_data = tf.Session()
-        sess_data.run(tf.local_variables_initializer())
-        image_, label_ = sess_data.run([image, label], feed_dict={filename1:filename})
-        print("image_.shape, ", image_.shape)
-        print("label_.shape, ", label_.shape)
-
-        # return image, label
+    # def read_tfrecord(self, filename, img_h, img_w, img_c, class_num):
+    #     filename1 = tf.placeholder(tf.string)
+    #     filename_queue = tf.train.string_input_producer([filename])
+    #     reader = tf.TFRecordReader()
+    #     _, serialized_example = reader.read(filename_queue)
+    #
+    #     features = tf.parse_single_example(
+    #         serialized_example,
+    #         features={
+    #             'image': tf.FixedLenFeature([], tf.string),
+    #             'label': tf.FixedLenFeature([], tf.string)
+    #         })
+    #
+    #     image = tf.decode_raw(features['image'], tf.float32)
+    #     label = tf.decode_raw(features['label'], tf.float64)
+    #
+    #     sess_data = tf.Session()
+    #     sess_data.run(tf.local_variables_initializer())
+    #     image_, label_ = sess_data.run([image, label], feed_dict={filename1:filename})
+    #     print("image_.shape, ", image_.shape)
+    #     print("label_.shape, ", label_.shape)
+    #
+    #     # return image, label
 
 def check_SYNTHIA_RAND_CITYSCAPES(filename):
     example = next(tf.python_io.tf_record_iterator(filename))
