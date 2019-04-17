@@ -33,6 +33,10 @@ class MainProcess(object):
         self.test_data_sample = 5 * 5
         self.l2_norm = 0.001
         self.keep_prob_rate = 0.5
+        self.loss_alpha = 1.0
+        self.loss_beta = 0.5
+        self.loss_gamma = 0.1
+        self.loss_delta = 0.33
         self.seed = 1234
         self.crop_flag = True
         self.valid_span = valid_span
@@ -161,10 +165,11 @@ class MainProcess(object):
             self.loss_perc = self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2
 
             #total loss
-            self.loss_dis_total = self.loss_adv
-            self.loss_task_total = self.loss_task
-            self.loss_PI_total = self.loss_PI
-            self.loss_gen_total = self.loss_adv + self.loss_task + self.loss_PI
+            self.loss_dis_total = self.loss_alpha * self.loss_adv
+            self.loss_task_total = self.loss_beta * self.loss_task
+            self.loss_PI_total = self.loss_gamma * self.loss_PI
+            self.loss_gen_total = self.loss_alpha * self.loss_adv + self.loss_beta * self.loss_task + \
+                                  self.loss_gamma * self.loss_PI + self.loss_delta * self.loss_perc
         # with tf.name_scope("score"):
         #     self.l_g = tf.reduce_mean(tf.abs(self.x - self.x_z_x), axis=(1,2,3))
         #     self.l_FM = tf.reduce_mean(tf.abs(self.drop3_r - self.drop3_re), axis=1)
@@ -267,12 +272,19 @@ class MainProcess(object):
         print("start training")
         for epoch in range(0, self.epoch):
             self.sess.run(tf.local_variables_initializer())
-            sum_loss_dis_f_forD = np.float32(0)
-            sum_loss_dis_f_forR = np.float32(0)
-            sum_loss_dis_r_forD = np.float32(0)
-            sum_loss_reconst = np.float32(0)
+            sum_loss_dis_f_D = np.float32(0)
+            sum_loss_dis_f_G = np.float32(0)
+            sum_loss_dis_r_D = np.float32(0)
+            sum_loss_perc = np.float32(0)
             sum_loss_dis_total = np.float32(0)
-            sum_loss_ref_total = np.float32(0)
+            sum_loss_gen_total = np.float32(0)
+            sum_loss_task_total = np.float32(0)
+            sum_loss_task_s = np.float32(0)
+            sum_loss_task_g = np.float32(0)
+            sum_loss_PI_s = np.float32(0)
+            sum_loss_PI_g = np.float32(0)
+            sum_loss_PI_total = np.float32(0)
+
 
             len_data_syn, len_data_real = self.make_datasets.make_data_for_1_epoch()
 
@@ -292,54 +304,78 @@ class MainProcess(object):
                                                          self.is_training:True, self.keep_prob:self.keep_prob_rate})
                 self.sess.run(self.train_pri, feed_dict={self.x_s:syns_np, self.pi:depths_np,
                                                          self.is_training:True, self.keep_prob:self.keep_prob_rate})
-                self.sess.run(self.train_gen, feed_dict={self.x_s:syns_np, self.x_r:reals_np, self.seg:segs_np, self.pi:depths_np,
+                self.sess.run(self.train_gen, feed_dict={self.x_s:syns_np, self.seg:segs_np, self.pi:depths_np,
                                 self.tar_d_f:tar_1, self.is_training:True, self.keep_prob:self.keep_prob_rate})
+
                 # sess.run(train_dec_opt, feed_dict={z_:z, x_: img_batch, d_dis_f_: tar_g_1, is_training_:True})
                 #train encoder
                 # sess.run(train_enc, feed_dict={x_:img_batch, d_dis_r_: tar_g_0, is_training_:True, z_:z})
                 # sess.run(train_enc_opt, feed_dict={x_:img_batch, d_dis_r_: tar_g_0, is_training_:True})
 
                 # loss for discriminator
-                loss_dis_total_, loss_dis_r_forD_, loss_dis_f_forD_ = self.sess.run([self.loss_dis_total, self.loss_dis_r_forD, self.loss_dis_f_forD],
-                                                                     feed_dict={self.back:back_batch, self.anno:anno_batch,
-                                self.real_img:real_img_batch, self.is_training:False, self.keep_prob:1.0})
+                loss_dis_total_, loss_dis_r_D_, loss_dis_f_D_ = self.sess.run([self.loss_dis_total, self.loss_dis_r, self.loss_dis_f],
+                                                                     feed_dict={self.x_s:syns_np, self.x_r:reals_np,
+                                self.tar_d_r:tar_1, self.tar_d_f:tar_0, self.is_training:False, self.keep_prob:1.0})
 
-                #loss for decoder
-                loss_ref_total_, loss_dis_f_forR_, loss_reconst_ = self.sess.run([self.loss_ref_total, self.loss_dis_f_forR, self.loss_reconst],
-                                                                                 feed_dict={self.back:back_batch, self.anno:anno_batch,
-                                self.is_training:False, self.keep_prob:1.0})
+                #loss for task predictor
+                loss_task_total_, loss_task_s_, loss_task_g_ = self.sess.run([self.loss_task_total, self.loss_task_s, self.loss_task_g],
+                                                                                 feed_dict={self.x_s:syns_np, self.seg:segs_np,
+                                                         self.is_training:False, self.keep_prob:1.0})
+                #loss for PI
+                loss_PI_total_, loss_PI_s_, loss_PI_g_ = self.sess.run([self.loss_PI_total, self.loss_PI_s, self.loss_PI_g],
+                                                                       feed_dict={self.x_s:syns_np, self.pi:depths_np,
+                                                         self.is_training:False, self.keep_prob:1.0})
 
+                #perceptual loss
+                loss_perc_ = self.sess.run(self.loss_perc, feed_dict={self.x_s:syns_np,  self.tar_d_f:tar_1, 
+                                                                      self.is_training:False, self.keep_prob:1.0})
+                
+                #generstor loss
+                loss_gen_total_, loss_dis_f_G_ = self.sess.run([self.loss_gen_total, self.loss_dis_f], 
+                                                               feed_dict={self.x_s:syns_np, self.seg:segs_np, self.pi:depths_np,
+                                self.tar_d_f:tar_1, self.is_training:False, self.keep_prob:1.0})
+                
+                
                 # #loss for encoder
                 # loss_enc_total_ = sess.run(loss_enc_total, feed_dict={x_: img_batch, d_dis_r_: tar_g_0, is_training_:False})
 
                 #for tensorboard
-                merged_ = self.sess.run(self.merged, feed_dict={self.back:back_batch, self.anno:anno_batch,
-                                self.real_img:real_img_batch, self.is_training:True, self.keep_prob:self.keep_prob_rate})
+                merged_ = self.sess.run(self.merged, feed_dict={self.x_s:syns_np, self.x_r:reals_np, self.seg:segs_np, self.pi:depths_np,
+                                self.tar_d_r:tar_1, self.tar_d_f:tar_0, self.is_training:False, self.keep_prob:1.0})
 
                 self.summary_writer.add_summary(merged_, epoch)
 
-                sum_loss_dis_f_forD += loss_dis_f_forD_ * len(back_batch)
-                sum_loss_dis_r_forD += loss_dis_r_forD_ * len(back_batch)
-                sum_loss_dis_f_forR += loss_dis_f_forR_ * len(back_batch)
-                sum_loss_reconst += loss_reconst_ * len(back_batch)
-                sum_loss_dis_total += loss_dis_total_ * len(back_batch)
-                sum_loss_ref_total += loss_ref_total_ * len(back_batch)
+                sum_loss_dis_f_D += loss_dis_f_D_ * len(syns_np)
+                sum_loss_dis_r_D += loss_dis_r_D_ * len(syns_np)
+                sum_loss_dis_f_G += loss_dis_f_G_ * len(syns_np)
+                sum_loss_perc += loss_perc_ * len(syns_np)
+                sum_loss_dis_total += loss_dis_total_ * len(syns_np)
+                sum_loss_gen_total += loss_gen_total_ * len(syns_np)
+                sum_loss_task_total += loss_task_total_ * len(syns_np)
+                sum_loss_task_s += loss_task_s_ * len(syns_np)
+                sum_loss_task_g += loss_task_g_ * len(syns_np)
+                sum_loss_PI_s += loss_PI_s_ * len(syns_np)
+                sum_loss_PI_g += loss_PI_g_ * len(syns_np)
+                sum_loss_PI_total += loss_PI_total_ * len(syns_np)
 
-                # if i % SAVE_MODEL_ITERATE_SPAN == 0 and i != 0:
-                #     saver2 = tf.train.Saver()
-                #     _ = saver2.save(sess, './out_models/model_' + LOGFILE_NAME + '_' + str(epoch) + '_' + str(i) +  '.ckpt')
             dif_sec = time.time() - start
             hour = int(dif_sec // 3600)
             min = int((dif_sec - hour * 3600) // 60)
             sec = int(dif_sec - hour * 3600 - min * 60)
-            print("----------------------------------------------------------------------")
+            print("---------------------------------------------------------------------------------------------")
             print(epoch, ", total time: {}hour, {}min, {}sec".format(hour, min, sec))
-            print("epoch = {:}, Refiner Total Loss = {:.4f}, Discriminator Total Loss = {:.4f}".format(
-                epoch, sum_loss_ref_total / len_data, sum_loss_dis_total / len_data))
-            print("Discriminator Real Loss = {:.4f}, Discriminator Refined Loss = {:.4f}".format(
-                sum_loss_dis_r_forD / len_data, sum_loss_dis_r_forD / len_data))
-            print("Refiner Adversarial Loss = {:.4f}, Refiner Reconstruction Loss = {:.4f}".format(
-                sum_loss_dis_f_forR / len_data, sum_loss_reconst / len_data))
+            print("epoch = {:}, Generator Total Loss = {:.4f}, Discriminator Total Loss = {:.4f}, "
+                  "Task Predictor Total Loss = {:.4f}, Privileged Network Total Loss = {:.4f}".format(
+                epoch, sum_loss_gen_total / len_data_syn, sum_loss_dis_total / len_data_syn,
+                sum_loss_task_total / len_data_syn, sum_loss_PI_total / len_data_syn))
+            print("Discriminator Real Loss = {:.4f}, Discriminator Fake Loss = {:.4f}, Discriminator Fake Loss for G = {:.4f}".format(
+                sum_loss_dis_r_D / len_data_syn, sum_loss_dis_r_D / len_data_syn, sum_loss_dis_f_G / len_data_syn))
+            print("Task Predictor Loss for Synthesis = {:.4f}, Task Predictor Loss for Generated = {:.4f}".format(
+                sum_loss_task_s / len_data_syn, sum_loss_task_g / len_data_syn))
+            print("Privileged information Loss for Synthesis = {:.4f}, Privileged information Loss for Generated = {:.4f}".format(
+                sum_loss_PI_s / len_data_syn, sum_loss_PI_g / len_data_syn))
+            print("Perceptual Loss = {:.4f}".format(sum_loss_perc / len_data_syn))
+
             '''
             if epoch % VALID_SPAN == 0:
                 print("validation phase")
