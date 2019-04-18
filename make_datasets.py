@@ -180,7 +180,11 @@ class Make_dataset():
                 seg_np = seg_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width]
                 depth_np = depth_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width, :]
                 real_np = real_np[h_margin:h_margin + height, w_margin_r:w_margin_r + width, :]
-
+            else:
+                syn_np = cv2.resize(syn_np, (width, height))
+                seg_np = cv2.resize(seg_np, (width, height), interpolation=cv2.INTER_NEAREST)
+                depth_np = cv2.resize(depth_np, (width, height), interpolation=cv2.INTER_NEAREST)
+                real_np = cv2.resize(real_np, (width, height))
 
             syn_np = syn_np.astype(np.float32) / 255.
             seg_np = (self.convert_int(seg_np)).astype(np.int32)
@@ -251,13 +255,14 @@ class Make_dataset():
         filename_syn_batch = self.file_syn_list_val
         # i_real = i % self.file_real_train_list_num
         filename_real_batch = self.file_real_val_list_selected
-        syns_np, segs_np, depths_np, reals_np = self.read_data(filename_syn_batch, filename_real_batch, self.img_width,
+        syns_np, segs_np, depths_np, reals_np, real_segs_np = self.read_data(filename_syn_batch, filename_real_batch, self.img_width,
                                                                self.img_height,
                                                                self.img_w_be_crop_syn, self.img_w_be_crop_real,
                                                                self.img_h_be_crop, self.syn_seg_dir_name,
-                                                               self.depth_dir_name, crop_flag=False)
+                                                               self.depth_dir_name, crop_flag=False, real_val_flag=True,
+                                                               real_val_dir=self.real_val_dir_name)
         # images_n = self.normalize_data(images)
-        return syns_np, segs_np, depths_np, reals_np
+        return syns_np, segs_np, depths_np, reals_np, real_segs_np
 
 
     def make_random_z_with_norm(self, mean, stddev, data_num, unit_num):

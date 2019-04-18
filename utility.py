@@ -250,11 +250,11 @@ def make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, log_fil
 
     t_out_s_arg = np.argmax(t_out_s_, axis=3)
     t_out_g_arg = np.argmax(t_out_g_, axis=3)
-    segs_np_arg = np.argmax(segs_np, axis=3)
+    # segs_np_arg = np.argmax(segs_np, axis=3)
     
     t_out_s_uint8 = class2color(t_out_s_arg)
     t_out_g_uint8 = class2color(t_out_g_arg)
-    segs_np_uint8 = class2color(segs_np_arg)
+    segs_np_uint8 = class2color(segs_np)
     
     syns_pil_list = convert_uint8_2_pil(syns_np_uint8)
     g_out_pil_list = convert_uint8_2_pil(g_out_uint8)
