@@ -110,6 +110,14 @@ class Make_dataset():
     #     return ok_train, ok_test, ng_files
 
     def convert_int(self, seg_np):
+        '''
+        0:other
+        1:sky
+        2:building
+        3:road
+        4:sidewalk
+        5:
+        '''
         # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22] ->
         # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
         seg_np_mod = np.where(seg_np == 19, 16, seg_np)
@@ -119,9 +127,8 @@ class Make_dataset():
 
     def convert_int_for_real(self, seg_np):
         #    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 19, 21,    255] ->
+
         # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,     15, 17, 16, 18,    13]
-        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22] ->
-        # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
         seg_np_mod = np.where(seg_np == 19, 16, seg_np)
         seg_np_mod = np.where(seg_np_mod == 21, 18, seg_np_mod)
         seg_np_mod = np.where(seg_np_mod == 255, 13, seg_np_mod)
