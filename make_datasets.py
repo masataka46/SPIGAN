@@ -61,6 +61,7 @@ class Make_dataset():
 
         #for validation
         self.file_syn_list_val = random.sample(self.file_syn_list, self.output_img_num)
+        self.file_real_train_list_selected = random.sample(self.file_real_train_list, self.output_img_num)
         self.file_real_val_list_selected = random.sample(self.file_real_val_list, self.output_img_num)
 
 
@@ -145,7 +146,8 @@ class Make_dataset():
 
 
     def read_data(self, file_syn_list, file_real_list, width, height, width_be_crop_syn, width_be_crop_real, 
-                  height_be_crop, seg_dir, depth_dir, crop_flag=True, real_val_flag=False, real_val_dir=''):
+                  height_be_crop, seg_dir, depth_dir, crop_flag=True, real_val_flag=False, real_seg_dir='',
+                  real_val_list=None):
         # print("width_be_crop_syn, ", width_be_crop_syn)
         # print("width_be_crop_real, ", width_be_crop_real)
         # print("height_be_crop, ", height_be_crop)
@@ -171,12 +173,16 @@ class Make_dataset():
             real_np = cv2.resize(real_np, (width_be_crop_real, height_be_crop))
 
             if real_val_flag:
-                real_dir_name, real_file_name_only = file_real1.rsplit('/', 1)
-                real_seg = Image.open(real_val_dir + real_file_name_only)
+                real = Image.open(real_val_list[num])  # RGB 1024h x 2048w x 3c -> 380h x 760w x 3c
+                real_np = np.asarray(real)
+                real_np = cv2.resize(real_np, (width_be_crop_real, height_be_crop))
+
+                real_dir_name, real_file_name_only = real_val_list[num].rsplit('/', 1)
+                real_seg = Image.open(real_seg_dir + real_file_name_only)
                 real_seg_np = np.asarray(real_seg)
-                real_seg_np = cv2.resize(real_seg_np, (width_be_crop_syn, height_be_crop), interpolation=cv2.INTER_NEAREST)
+                real_seg_np = cv2.resize(real_seg_np, (width_be_crop_real, height_be_crop), interpolation=cv2.INTER_NEAREST)
             else:
-                real_seg_np = None
+                real_seg_np = np.zeros((width_be_crop_real, height_be_crop), dtype=np.uint8)
 
             if crop_flag:
                 w_margin_s = np.random.randint(0, width_be_crop_syn - width + 1)
@@ -187,11 +193,13 @@ class Make_dataset():
                 seg_np = seg_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width]
                 depth_np = depth_np[h_margin:h_margin + height, w_margin_s:w_margin_s + width, :]
                 real_np = real_np[h_margin:h_margin + height, w_margin_r:w_margin_r + width, :]
+                real_seg_np = real_seg_np[h_margin:h_margin + height, w_margin_r:w_margin_r + width]
             else:
                 syn_np = cv2.resize(syn_np, (width, height))
                 seg_np = cv2.resize(seg_np, (width, height), interpolation=cv2.INTER_NEAREST)
                 depth_np = cv2.resize(depth_np, (width, height), interpolation=cv2.INTER_NEAREST)
                 real_np = cv2.resize(real_np, (width, height))
+                real_seg_np = cv2.resize(real_seg_np, (width, height), interpolation=cv2.INTER_NEAREST)
 
             syn_np = syn_np.astype(np.float32) / 255.
             seg_np = (self.convert_int(seg_np)).astype(np.int32)
@@ -213,6 +221,8 @@ class Make_dataset():
             depths_np = np.asarray(depths, dtype=np.float32)
             reals_np = np.asarray(reals, dtype=np.float32)
             real_segs_np = np.asarray(real_segs, dtype=np.int32)
+            # print("segs_np.shape, ", segs_np.shape)
+            # print("real_segs_np.shape, ", real_segs_np.shape)
             return syns_np, segs_np, depths_np, reals_np, real_segs_np
         else:
             syns_np = np.asarray(syns, dtype=np.float32)
@@ -253,21 +263,21 @@ class Make_dataset():
                                                                              self.img_width, self.img_height,
                                                                self.img_w_be_crop_syn, self.img_w_be_crop_real,
                                                                self.img_h_be_crop, self.syn_seg_dir_name,
-                                                               self.depth_dir_name, crop_flag=False, real_val_flag=True,
-                                                               real_val_dir=self.real_val_dir_name)
+                                                               self.depth_dir_name, crop_flag=True, real_val_flag=True,
+                                                               real_seg_dir=self.real_seg_dir_name)
         # images_n = self.normalize_data(images)
         return syns_np, segs_np, depths_np, reals_np, real_segs_np
 
     def get_data_for_1_batch_for_output(self):
         filename_syn_batch = self.file_syn_list_val
-        # i_real = i % self.file_real_train_list_num
-        filename_real_batch = self.file_real_val_list_selected
-        syns_np, segs_np, depths_np, reals_np, real_segs_np = self.read_data(filename_syn_batch, filename_real_batch, self.img_width,
-                                                               self.img_height,
+        filename_real_tr_batch = self.file_real_train_list_selected
+        filename_real_va_batch = self.file_real_val_list_selected
+        syns_np, segs_np, depths_np, reals_np, real_segs_np = self.read_data(filename_syn_batch, filename_real_tr_batch,
+                                                                             self.img_width, self.img_height,
                                                                self.img_w_be_crop_syn, self.img_w_be_crop_real,
                                                                self.img_h_be_crop, self.syn_seg_dir_name,
-                                                               self.depth_dir_name, crop_flag=False, real_val_flag=True,
-                                                               real_val_dir=self.real_val_dir_name)
+                                                               self.depth_dir_name, crop_flag=True, real_val_flag=True,
+                                                               real_seg_dir=self.real_seg_dir_name, real_val_list=filename_real_va_batch)
         # images_n = self.normalize_data(images)
         return syns_np, segs_np, depths_np, reals_np, real_segs_np
 

@@ -435,6 +435,7 @@ class MainProcess(object):
                 t_out_r_ = self.sess.run( self.t_out_r,
                                                     feed_dict={self.x_r_v: reals_np, self.is_training: False, self.keep_prob: 1.0})
                 Utility.make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, self.logfile_name, self.out_img_dir)
+                Utility.make_output_img_for_real(reals_np, t_out_r_, real_segs_np, epoch, self.logfile_name, self.out_img_dir)
 
             # if epoch % self.valid_span == 0:
             #

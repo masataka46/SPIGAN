@@ -271,34 +271,16 @@ def make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, log_fil
     t_out_s_arg = np.argmax(t_out_s_, axis=3)
     t_out_g_arg = np.argmax(t_out_g_, axis=3)
     # segs_np_arg = np.argmax(segs_np, axis=3)
-    
+
     t_out_s_uint8 = class2color(t_out_s_arg)
     t_out_g_uint8 = class2color(t_out_g_arg)
     segs_np_uint8 = class2color(segs_np)
-    
+
     syns_pil_list = convert_uint8_2_pil(syns_np_uint8)
     g_out_pil_list = convert_uint8_2_pil(g_out_uint8)
     t_out_s_pil_list = convert_uint8_2_pil(t_out_s_uint8)
     t_out_g_pil_list = convert_uint8_2_pil(t_out_g_uint8)
     segs_pil_list = convert_uint8_2_pil(segs_np_uint8)
-
-
-    # img_batch_ng_01 = (img_batch_ng + 1.) / 2.
-    # img_batch_ok_01 = (img_batch_ok + 1.) / 2.
-    # x_z_x_ng_01 = (x_z_x_ng + 1.) / 2.
-    # x_z_x_ok_01 = (x_z_x_ok + 1.) / 2.
-    # 
-    # diff_ng = img_batch_ng_01 - x_z_x_ng_01
-    # diff_ng_np = diff_ng / 2.
-    # diff_ok = img_batch_ok_01 - x_z_x_ok_01
-    # diff_ok_np = diff_ok / 2.
-    # 
-    # img_batch_ng_PIL = convert_np2pil(img_batch_ng_01)
-    # img_batch_ok_PIL = convert_np2pil(img_batch_ok_01)
-    # x_z_x_ng_PIL = convert_np2pil(x_z_x_ng_01)
-    # x_z_x_ok_PIL = convert_np2pil(x_z_x_ok_01)
-    # diff_ng_PIL = convert_np2pil(diff_ng_np)
-    # diff_ok_PIL = convert_np2pil(diff_ok_np)
 
     wide_image_np = np.ones(((img1_h + 1) * data_num - 1, (img1_w + 1) * 5 - 1, 3), dtype=np.uint8) * 255
     wide_image_PIL = Image.fromarray(wide_image_np)
@@ -310,7 +292,37 @@ def make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, log_fil
         wide_image_PIL.paste(segs1, ((img1_w + 1) * 4, num * (img1_h + 1)))
 
     wide_image_PIL.save(out_img_dir + "/trainResultImage_"+ log_file_name + '_' + str(epoch) + ".png")
-#test
+
+
+def make_output_img_for_real(real_syns_np, t_out_r_, segs_np, epoch, log_file_name, out_img_dir):
+    data_num, img1_h, img1_w, cha = real_syns_np.shape
+    syns_np_uint8 = (real_syns_np * 255.).astype(np.uint8)
+    # g_out_uint8 = (g_out_ * 255.).astype(np.uint8)
+
+    t_out_r_arg = np.argmax(t_out_r_, axis=3)
+    # t_out_g_arg = np.argmax(t_out_g_, axis=3)
+    # segs_np_arg = np.argmax(segs_np, axis=3)
+
+    t_out_r_uint8 = class2color(t_out_r_arg)
+    # t_out_g_uint8 = class2color(t_out_g_arg)
+    segs_np_uint8 = class2color(segs_np)
+
+    syns_pil_list = convert_uint8_2_pil(syns_np_uint8)
+    # g_out_pil_list = convert_uint8_2_pil(g_out_uint8)
+    t_out_r_pil_list = convert_uint8_2_pil(t_out_r_uint8)
+    # t_out_g_pil_list = convert_uint8_2_pil(t_out_g_uint8)
+    segs_pil_list = convert_uint8_2_pil(segs_np_uint8)
+
+    wide_image_np = np.ones(((img1_h + 1) * data_num - 1, (img1_w + 1) * 3 - 1, 3), dtype=np.uint8) * 255
+    wide_image_PIL = Image.fromarray(wide_image_np)
+    for num, (syns1, t_out_r1, segs1) in enumerate(
+            zip(syns_pil_list, t_out_r_pil_list, segs_pil_list)):
+        wide_image_PIL.paste(syns1, (0, num * (img1_h + 1)))
+        wide_image_PIL.paste(t_out_r1, ((img1_w + 1) * 1, num * (img1_h + 1)))
+        wide_image_PIL.paste(segs1, ((img1_w + 1) * 2, num * (img1_h + 1)))
+
+    wide_image_PIL.save(out_img_dir + "/RealResultImage_" + log_file_name + '_' + str(epoch) + ".png")
+
 
 def save_list_to_csv(list, filename):
     f = open(filename, 'w')
