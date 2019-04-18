@@ -1,5 +1,4 @@
 import numpy as np
-# import os
 from PIL import Image
 import matplotlib
 matplotlib.use('Agg')
@@ -9,17 +8,6 @@ import sklearn.metrics as sm
 import csv
 
 def compute_precision_recall(score_A_np, before_even_points):
-    # array_ok = np.where(score_A_np[:, 1] == 0.0)
-    # array_ng = np.where(score_A_np[:, 1] == 1.0)
-    # # print("array_ok, ", array_ok)
-    # # print("array_ng, ", array_ng)
-    #
-    # mean_ok = np.mean((score_A_np[array_ok])[:, 0])
-    # mean_ng = np.mean((score_A_np[array_ng])[:, 0])
-    # threshold = (mean_ok + mean_ng) / 2.0
-    # print("mean_ok, ", mean_ok)
-    # print("mean_ng, ", mean_ng)
-    # print("threshold, ", threshold)
     argsort = np.argsort(score_A_np, axis=0)[:, 0]
     score_A_np_sort = score_A_np[argsort][::-1]
     value_1_0 = (np.where(score_A_np_sort[:, 1] == 1., 1., 0.)).astype(np.float32)
@@ -62,24 +50,7 @@ def compute_precision_recall(score_A_np, before_even_points):
         tn_BEP = before_even_points[5]
         fn_BEP = before_even_points[6]
         score_A_BEP = before_even_points[7]
-    # array_upper = score_A_np[:, 0] >= threshold
-    # array_lower = score_A_np[:, 0] < threshold
-    # # print("array_upper, ", array_upper)
-    # # print("array_lower, ", array_lower)
-    # # print("np.sum(array_upper.astype(np.float32)), ", np.sum(array_upper.astype(np.float32)))
-    # # print("np.sum(array_lower.astype(np.float32)), ", np.sum(array_lower.astype(np.float32)))
-    # array_ok_tf = score_A_np[:, 1] == 0.0
-    # array_ng_tf = score_A_np[:, 1] == 1.0
-    # # print("np.sum(array_ok_tf.astype(np.float32)), ", np.sum(array_ok_tf.astype(np.float32)))
-    # # print("np.sum(array_ng_tf.astype(np.float32)), ", np.sum(array_ng_tf.astype(np.float32)))
-    #
-    # tn = np.sum(np.equal(array_lower, array_ok_tf).astype(np.int32))
-    # tp = np.sum(np.equal(array_upper, array_ng_tf).astype(np.int32))
-    # fp = np.sum(np.equal(array_upper, array_ok_tf).astype(np.int32))
-    # fn = np.sum(np.equal(array_lower, array_ng_tf).astype(np.int32))
-    # print("tp, tn, fp, fn, ", tp, tn, fp, fn)
-    # print("precision_BEP.shape, ", precision_BEP.shape)
-    # print("tp_BEP, ", tp_BEP)
+
     return tp_BEP, fp_BEP, tn_BEP, fn_BEP, precision_BEP, recall_BEP, f1_BEP, score_A_BEP
 
 
@@ -109,7 +80,6 @@ def compute_precision_recall_with_threshold(score_A_np, threshold):
     f1_normal = 2 * (recall_normal * precision_normal) / (recall_normal + precision_normal)
 
     return tp, fp, tn, fn, precision, recall, f1, recall_normal, precision_normal, f1_normal
-
 
 
 def save_graph(x, y, filename, epoch):
@@ -158,14 +128,6 @@ def make_ROC_graph(score_A_np, filename, epoch):
     return auc
 
 
-def unnorm_img(img_np):
-    img_np_255 = (img_np + 1.0) * 127.5
-    img_np_255_mod1 = np.maximum(img_np_255, 0)
-    img_np_255_mod1 = np.minimum(img_np_255_mod1, 255)
-    img_np_uint8 = img_np_255_mod1.astype(np.uint8)
-    return img_np_uint8
-
-
 def convert_np2pil(images_01):
     list_images_PIL = []
     for num, images_01_1 in enumerate(images_01):
@@ -180,6 +142,7 @@ def convert_np2pil(images_01):
     return list_images_PIL
     # 5->ng, 7->ok
 
+
 def convert_uint8_2_pil(np_uint8):
     list_images_PIL = []
     for num, images_1 in enumerate(np_uint8):
@@ -188,31 +151,8 @@ def convert_uint8_2_pil(np_uint8):
         list_images_PIL.append(image_1_PIL)
     return list_images_PIL
 
-def class2color(np_arg):
-    # color_list = [
-    #     #       name                     id    trainId   category            catId     hasInstances   ignoreInEval   color
-    #     Label('road', 7, 0, 'ground', 1, False, False, (128, 64, 128)),
-    #     Label('sidewalk', 8, 1, 'ground', 1, False, False, (244, 35, 232)),
-    #     Label('building', 11, 2, 'construction', 2, False, False, (70, 70, 70)),
-    #     Label('wall', 12, 3, 'construction', 2, False, False, (102, 102, 156)),
-    #     Label('fence', 13, 4, 'construction', 2, False, False, (190, 153, 153)),
-    #     Label('pole', 17, 5, 'object', 3, False, False, (153, 153, 153)),
-    #     Label('traffic light', 19, 6, 'object', 3, False, False, (250, 170, 30)),
-    #     Label('traffic sign', 20, 7, 'object', 3, False, False, (220, 220, 0)),
-    #     Label('vegetation', 21, 8, 'nature', 4, False, False, (107, 142, 35)),
-    #     Label('terrain', 22, 9, 'nature', 4, False, False, (152, 251, 152)),
-    #     Label('sky', 23, 10, 'sky', 5, False, False, (70, 130, 180)),
-    #     Label('person', 24, 11, 'human', 6, True, False, (220, 20, 60)),
-    #     Label('rider', 25, 12, 'human', 6, True, False, (255, 0, 0)),
-    #     Label('car', 26, 13, 'vehicle', 7, True, False, (0, 0, 142)),
-    #     Label('truck', 27, 14, 'vehicle', 7, True, False, (0, 0, 70)),
-    #     Label('bus', 28, 15, 'vehicle', 7, True, False, (0, 60, 100)),
-    #     Label('train', 31, 16, 'vehicle', 7, True, False, (0, 80, 100)),
-    #     Label('motorcycle', 32, 17, 'vehicle', 7, True, False, (0, 0, 230)),
-    #     Label('bicycle', 33, 18, 'vehicle', 7, True, False, (119, 11, 32)),
-    # ]
-    # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
 
+def class2color(np_arg):
     # 0:
     # 1: sky
     # 2: building
@@ -330,44 +270,12 @@ def save_list_to_csv(list, filename):
     writer.writerows(list)
     f.close()
 
+
 def save_1row_to_csv(list, filename):
     f = open(filename, 'a')
     writer = csv.writer(f, lineterminator='\n')
     writer.writerow(list)
     f.close()
-
-def save_histogram_of_norm_abnorm_score(score_A_np, filename, epoch, division_num=100, standardize_flag=True):
-    if standardize_flag:
-        #standardize
-        score_A_np_0 = (score_A_np[:,0])
-        score_A_0_max = np.max(score_A_np_0)
-        score_A_0_min = np.min(score_A_np_0)
-        score_A_0_stand = (score_A_np_0 - score_A_0_min) / (score_A_0_max - score_A_0_min + 1e-8)
-    else:
-        score_A_0_stand = (score_A_np[:, 0])
-
-    tar = score_A_np[:,1]
-    tar_rev = 1. - tar
-
-    score_abnorm = score_A_0_stand[np.nonzero(score_A_0_stand * tar)]
-    score_norm = score_A_0_stand[np.nonzero(score_A_0_stand * tar_rev)]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-
-    plt.hist(score_abnorm, bins=division_num, alpha=0.3, histtype='stepfilled', color='r', label='Abnormal Scores')
-    plt.hist(score_norm, bins=division_num, alpha=0.3, histtype='stepfilled', color='b', label='Normal Scores')
-
-    # ax.hist(x, bins=50)
-    ax.set_title('Histogram of the Normal and Abnormal Scores for the test data')
-    ax.set_xlabel('Scores')
-    ax.set_ylabel('Freq')
-    ax.legend()
-
-    plt.savefig('out_histogram/histogram_socores_' + filename + '_' + str(epoch) + '.png')
-    plt.close()
-
-
 
 
 
@@ -378,11 +286,8 @@ if __name__ == '__main__':
     score_A_np = np.concatenate([pred, tar], axis=1)
     filename = 'tmp_histogram1.png'
     epoch = 3
-    # auc, recall_BEP, precision_BEP, f1_BEP = make_ROC_graph(score_A_np, '', 1)
-    # tp, fp, tn, fn, precision, recall, medium = compute_precision_recall(score_A_np)
     compute_precision_recall_with_threshold(score_A_np, threshold=0.5)
-    # save_histogram_of_norm_abnorm_score(score_A_np, filename, epoch, 4)
-    # print("tp, fp, tn, fn, precision, recall, medium", tp, fp, tn, fn, precision, recall, medium)
+
 
 
 

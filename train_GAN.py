@@ -12,7 +12,7 @@ class MainProcess(object):
                  syn_dir_name='', real_train_dir_name='', real_val_dir_name='', syn_seg_dir_name='', real_seg_dir_name='',
                  depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16,
                  path_to_vgg19='', output_img_span=1):
-        #global variants
+
         self.batch_size = batch_size
         self.logfile_name = log_file_name
         self.epoch = epoch
@@ -50,8 +50,6 @@ class MainProcess(object):
         self.save_model_span = save_model_span
         self.output_img_span = output_img_span
         self.reconst_lambda = 0.1
-        # SAVE_MODEL_ITERATE_SPAN = args.save_model_iterate_span
-        # BEFORE_BREAK_EVEN_POINTS = np.ones((8), dtype=np.float32) * 0.5 # (recall, precision, f1)
 
         try:
             os.mkdir('log')
@@ -100,16 +98,7 @@ class MainProcess(object):
         self.tar_d_r = tf.placeholder(tf.float32, [None, self.img_height//8, self.img_width//8, 1], name='target_discriminator_for_real')
         self.tar_d_f = tf.placeholder(tf.float32, [None, self.img_height//8, self.img_width//8, 1], name='target_discriminator_for_fake')
         self.x_r_v = tf.placeholder(tf.float32, [None, self.img_height, self.img_width, self.img_channel], name='x_r_v')  # real image to T
-        # self.d_dis_f = tf.placeholder(tf.float32, [None, 1], name='d_dis_f') #target of discriminator related to generator
-        # self.d_dis_r = tf.placeholder(tf.float32, [None, 1], name='d_dis_r') #target of discriminator related to real image
-        self.tp_BEP = tf.placeholder(tf.float32, shape=(), name='tp_BEP')
-        self.tn_BEP = tf.placeholder(tf.float32, shape=(), name='tn_BEP')
-        self.fp_BEP = tf.placeholder(tf.float32, shape=(), name='fp_BEP')
-        self.fn_BEP = tf.placeholder(tf.float32, shape=(), name='fn_BEP')
-        self.precision_BEP = tf.placeholder(tf.float32, shape=(), name='precision_BEP')
-        self.recall_BEP = tf.placeholder(tf.float32, shape=(), name='recall_BEP')
-        self.f1_BEP = tf.placeholder(tf.float32, shape=(), name='f1_BEP')
-        self.score_A_BEP = tf.placeholder(tf.float32, shape=(), name='score_A_BEP')
+
         self.is_training = tf.placeholder(tf.bool, name = 'is_training')
         self.keep_prob = tf.placeholder(tf.float32, shape=(), name='keep_prob')
 
@@ -170,35 +159,7 @@ class MainProcess(object):
             self.loss_PI_total = self.loss_gamma * self.loss_PI
             self.loss_gen_total = self.loss_alpha * self.loss_dis_f + self.loss_beta * self.loss_task + \
                                   self.loss_gamma * self.loss_PI + self.loss_delta * self.loss_perc
-        # with tf.name_scope("score"):
-        #     self.l_g = tf.reduce_mean(tf.abs(self.x - self.x_z_x), axis=(1,2,3))
-        #     self.l_FM = tf.reduce_mean(tf.abs(self.drop3_r - self.drop3_re), axis=1)
-        #     # score_A =  SCORE_ALPHA * l_g + (1.0 - self.score_alpha) * self.l_FM
-        # 
-        # with tf.name_scope("optional_loss"):
-        #     loss_dec_opt = loss_dec_total + CYCLE_LAMBDA * l_g
-        #     loss_enc_opt = loss_enc_total + CYCLE_LAMBDA * l_g
 
-        # with tf.name_scope('metrics'):
-        #     auc, update_op_auc = tf.metrics.auc(score_A_tar_, score_A_pred_, num_thresholds=AUC_COORD_NUM)
-        #     tp_BEP_cal = tp_BEP_
-        #     tn_BEP_cal = tn_BEP_
-        #     fp_BEP_cal = fp_BEP_
-        #     fn_BEP_cal = fn_BEP_
-        #     precision_BEP_cal = precision_BEP_
-        #     recall_BEP_cal = recall_BEP_
-        #     f1_BEP_cal = f1_BEP_
-        #     score_A_BEP_cal = score_A_BEP_
-            # metrics_total = tp_BEP_cal + tn_BEP_cal + fp_BEP_cal + fn_BEP_cal + precision_BEP_cal + recall_BEP_cal + f1_BEP_cal + score_A_BEP_cal
-        #     tarT = tf.argmax(tar, axis=3, output_type=tf.int32)
-        #     probT = tf.argmax(prob, axis=3, output_type=tf.int32)
-        #     # m_iou, conf_mat = util.cal_mean_IOU(tarT, probT, class_num)
-        #     fp, fp_op = tf.metrics.false_positives(tarT, probT)
-        #     tp, tp_op = tf.metrics.true_positives(tarT, probT)
-        #     fn, fn_op = tf.metrics.false_negatives(tarT, probT)
-        #     tn, tn_op = tf.metrics.true_negatives(tarT, probT)
-        #     iou_target = tn / (tn + fp + fn + 1e-8)
-        #     iou_back = tp / (tp + fp + fn + 1e-8)
         tf.summary.scalar('self.loss_dis_r', self.loss_dis_r)
         tf.summary.scalar('self.loss_dis_f', self.loss_dis_f)
         tf.summary.scalar('self.loss_adv', self.loss_adv)
@@ -220,15 +181,6 @@ class MainProcess(object):
         tf.summary.scalar('self.loss_PI_total', self.loss_PI_total)
         tf.summary.scalar('self.loss_gen_total', self.loss_gen_total)
         self.merged = tf.summary.merge_all()
-
-        # summa_tp = tf.summary.scalar('tp_BEP_cal', tp_BEP_cal)
-        # summa_tn = tf.summary.scalar('tn_BEP_cal', tn_BEP_cal)
-        # summa_fp = tf.summary.scalar('fp_BEP_cal', fp_BEP_cal)
-        # summa_fn = tf.summary.scalar('fn_BEP_cal', fn_BEP_cal)
-        # summa_preci = tf.summary.scalar('precision_BEP_cal', precision_BEP_cal)
-        # summa_recal = tf.summary.scalar('recall_BEP_cal', recall_BEP_cal)
-        # summa_f1 = tf.summary.scalar('f1_BEP_cal', f1_BEP_cal)
-        # summa_A = tf.summary.scalar('score_A_BEP_cal', score_A_BEP_cal)
 
         with tf.name_scope("graphkeys"):
             # t_vars = tf.trainable_variables()
@@ -294,10 +246,7 @@ class MainProcess(object):
                 syns_np, segs_np, depths_np, reals_np = self.make_datasets.get_data_for_1_batch(i, self.batch_size)
                 tar_1 = self.make_datasets.make_target_1_0(1.0, len(syns_np), self.img_width//8, self.img_height//8) #1 ->
                 tar_0 = self.make_datasets.make_target_1_0(0.0, len(syns_np), self.img_width//8, self.img_height//8) #0 ->
-                #train discriminator
-                # g_out_ = self.sess.run(self.g_out, feed_dict={self.x_s:syns_np, self.x_r:reals_np, self.seg:segs_np, self.pi:depths_np,
-                #                 self.tar_d_f:tar_1, self.is_training:True, self.keep_prob:self.keep_prob_rate})
-                # print("g_out_.shape, ", g_out_.shape)
+
                 self.sess.run(self.train_dis, feed_dict={self.x_s:syns_np, self.x_r:reals_np,
                                 self.tar_d_r:tar_1, self.tar_d_f:tar_0, self.is_training:True, self.keep_prob:self.keep_prob_rate})
                 self.sess.run(self.train_tas, feed_dict={self.x_s:syns_np, self.seg:segs_np,
@@ -335,11 +284,7 @@ class MainProcess(object):
                                                                feed_dict={self.x_s:syns_np, self.seg:segs_np, self.pi:depths_np,
                                 self.tar_d_f:tar_1, self.is_training:False, self.keep_prob:1.0})
                 
-                
-                # #loss for encoder
-                # loss_enc_total_ = sess.run(loss_enc_total, feed_dict={x_: img_batch, d_dis_r_: tar_g_0, is_training_:False})
 
-                #for tensorboard
                 merged_ = self.sess.run(self.merged, feed_dict={self.x_s:syns_np, self.x_r:reals_np, self.seg:segs_np, self.pi:depths_np,
                                 self.tar_d_r:tar_1, self.tar_d_f:tar_0, self.is_training:False, self.keep_prob:1.0})
 
@@ -376,57 +321,12 @@ class MainProcess(object):
                 sum_loss_PI_s / len_data_syn, sum_loss_PI_g / len_data_syn))
             print("Perceptual Loss = {:.4f}".format(sum_loss_perc / len_data_syn))
 
-            '''
-            if epoch % VALID_SPAN == 0:
-                print("validation phase")
-                score_A_np = np.zeros((0, 2), dtype=np.float32)
-                score_A_pred = np.zeros((0, 1), dtype=np.float32)
-                score_A_tar = np.zeros((0, 1), dtype=np.float32)
-                val_data_num = len(make_datasets.test_file_tar_list)
-                for i in range(0, val_data_num, BATCH_SIZE):
-                    img_batch, tars_batch = make_datasets.get_valid_data_for_1_batch(i, BATCH_SIZE)
-                    score_A_ = sess.run(score_A, feed_dict={x_:img_batch, is_training_:False})
-                    score_A_re = np.reshape(score_A_, (-1, 1))
-                    tars_batch_re = np.reshape(tars_batch, (-1, 1))
 
-                    score_A_np_tmp = np.concatenate((score_A_re, tars_batch_re), axis=1)
-                    score_A_np = np.concatenate((score_A_np, score_A_np_tmp), axis=0) # score_A_np = [[1.8, 0.], [0.8, 1.], ...]
+            # if epoch % self.valid_span == 0:
+            #     print("validation phase")
+            #     #TODO
 
-                    score_A_pred = np.concatenate((score_A_pred, score_A_re), axis=0)
-                    score_A_tar = np.concatenate((score_A_tar, tars_batch_re), axis=0)
 
-                score_A_pred_max = np.max(score_A_pred)
-                score_A_pred_min = np.min(score_A_pred)
-                score_A_pred_norm = (score_A_pred - score_A_pred_min) / ((score_A_pred_max - score_A_pred_min + 1e-8))
-                auc_, update_op_auc_ = sess.run([auc, update_op_auc], feed_dict={score_A_pred_:score_A_pred_norm,
-                                                                                 score_A_tar_:score_A_tar, is_training_:False})
-                print("auc_, ", auc_)
-                # print("update_op_auc_, ", update_op_auc_)
-
-                tp_BEP, fp_BEP, tn_BEP, fn_BEP, precision_BEP, recall_BEP, f1_BEP, score_A_BEP = Utility.compute_precision_recall(score_A_np, BEFORE_BREAK_EVEN_POINTS) #standardize_flag
-                auc_log = Utility.make_ROC_graph(score_A_np, 'out_graph/' + LOGFILE_NAME, epoch)
-                BEFORE_BREAK_EVEN_POINTS = (recall_BEP, precision_BEP, f1_BEP)
-                Utility.save_histogram_of_norm_abnorm_score(score_A_np, LOGFILE_NAME, epoch, standardize_flag=STANDARDIZE_FLAG)
-                # print("precision:{:.4f}".format(precision_BEP))
-                print("at break even points, tp:{}, fp:{}, tn:{}, fn:{}, precision:{:.4f}, recall:{:.4f}, f1:{:.4f}, AUC:{:.4f}"
-                    .format(tp_BEP, fp_BEP, tn_BEP, fn_BEP, precision_BEP, recall_BEP, f1_BEP, auc_log))
-                # log_list.append([epoch, auc_log, tp, fp, tn, fn, precision, recall, threshold])
-                log_list= [epoch, auc_log, tp_BEP, fp_BEP, tn_BEP, fn_BEP, precision_BEP, recall_BEP, f1_BEP, score_A_BEP]
-                Utility.save_1row_to_csv(log_list, 'log/' + LOGFILE_NAME + '_auc.csv')
-                img_batch_ok, _ = make_datasets.get_valid_data_for_1_batch(0, 10)
-                img_batch_ng, _ = make_datasets.get_valid_data_for_1_batch(val_data_num - 11, 10)
-
-                x_z_x_ok = sess.run(x_z_x, feed_dict={x_:img_batch_ok, is_training_:False})
-                x_z_x_ng = sess.run(x_z_x, feed_dict={x_:img_batch_ng, is_training_:False})
-
-                Utility.make_output_img(img_batch_ng, img_batch_ok, x_z_x_ng, x_z_x_ok, epoch, LOGFILE_NAME, OUT_IMG_DIR)
-                print("tp_BEP, ", tp_BEP)
-                summa_result = sess.run([summa_tp, summa_tn, summa_fp, summa_fn, summa_preci, summa_recal, summa_f1, summa_A],
-                                        feed_dict={tp_BEP_:tp_BEP, tn_BEP_:tn_BEP, fp_BEP_:fp_BEP, fn_BEP_:fn_BEP,
-                            precision_BEP_:precision_BEP, recall_BEP_:recall_BEP, f1_BEP_:f1_BEP, score_A_BEP_:score_A_BEP})
-                for j in range(len(summa_result)):
-                    summary_writer.add_summary(summa_result[j], epoch)
-            '''
             if epoch % self.output_img_span == 0:
                 print("output image now....")
                 syns_np, segs_np, depths_np, reals_np, real_segs_np = self.make_datasets.get_data_for_1_batch_for_output()
@@ -436,10 +336,6 @@ class MainProcess(object):
                                                     feed_dict={self.x_r_v: reals_np, self.is_training: False, self.keep_prob: 1.0})
                 Utility.make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, self.logfile_name, self.out_img_dir)
                 Utility.make_output_img_for_real(reals_np, t_out_r_, real_segs_np, epoch, self.logfile_name, self.out_img_dir)
-
-            # if epoch % self.valid_span == 0:
-            #
-
 
             # save model
             if epoch % self.save_model_span == 0 and epoch != 0:
@@ -483,22 +379,6 @@ if __name__ == '__main__':
                                valid_span=args.valid_span, restored_model_name=args.restore_model_name,
                                save_model_span=args.save_model_span, base_channel=args.base_channel,
                                path_to_vgg19=args.path_to_vgg, output_img_span=args.output_img_span)
-    # batch_size = 8, log_file_name = 'log01', epoch = 100,
-    # syn_dir_name = '', real_train_dir_name = '', real_val_dir_name = '', syn_seg_dir_name = '', real_seg_dir_name = '',
-    # depth_dir_name = '', valid_span = 1, restored_model_name = '', save_model_span = 10, base_channel = 16
-    # if args.predict_no_anno_phase:
-    #     main_process.predict_no_anno_Model()
-    #
-    # # elif args.predict_phase:
-    # #     main_process.predict()
-    #
-    # elif args.predict_no_anno_2size_phase:
-    #     main_process.predict_no_anno_2size()
-    #
-    # elif args.evaluate_files_phase:
-    #     main_process.evaluate_specified_files()
-    #
-    # else:
-    #     main_process.trainModel()
+
     main_process.train()
 

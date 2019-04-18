@@ -1,9 +1,5 @@
 import numpy as np
-# import os
 import tensorflow as tf
-# from PIL import Image
-# import utility as Utility
-# import argparse
 import math
 
 class SPIGAN():
@@ -60,14 +56,6 @@ class SPIGAN():
         # print("deconv, in def, ", deconv.get_shape().as_list())
         return deconv
 
-    # def batch_norm(self, input):
-    #     shape = input.get_shape().as_list()
-    #     n_out = shape[-1]
-    #     scale = tf.get_variable('scale', [n_out], initializer=tf.constant_initializer(1.0))
-    #     beta = tf.get_variable('beta', [n_out], initializer=tf.constant_initializer(0.0))
-    #     batch_mean, batch_var = tf.nn.moments(input, [0])
-    #     bn = tf.nn.batch_normalization(input, batch_mean, batch_var, beta, scale, 0.0001, name='batch_norm')
-    #     return bn
 
     def batch_norm_train(self, inputs, pop_mean, pop_var, beta, scale, decay=0.999):
         batch_mean, batch_var = tf.nn.moments(inputs, [0, 1, 2])
@@ -339,18 +327,10 @@ class SPIGAN():
 
         return conv_d3
 
-    def vgg19(self, rgb, reuse=False):
-        """
-                load variable from npy to build the VGG
-                :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
-                :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
-                """
+    def vgg19(self, rgb, reuse=False): #rgb is expected [0,1]
         rgb_scaled = rgb * 255
         # Convert RGB to BGR
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
         bgr = tf.concat(axis=3, values=[
             blue - self.VGG_MEAN[0],
             green - self.VGG_MEAN[1],

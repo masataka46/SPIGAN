@@ -81,44 +81,7 @@ class Make_dataset():
                 list_mod.append(y)
         return list_mod
 
-    # def delete_destroyed_file(self, list):
-    #     list_mod = []
-    #     print("before delete, len is ", len(list))
-    #     for y in list:
-    #         dir_name, filename = y.rsplit("/", 1)
-    #         if (filename == '_976_8493841.png') or (filename == '_1943_8271175.png'):  # destroyed file
-    #             continue
-    #         list_mod.append(y)
-    #     print("after delete, len is ", len(list_mod))
-    #     return list_mod
-
-    # def divide_to_train_testOk_testNg(self, file_list, ok_prefix, ng_prefix, ok_test_num):
-    #     ok_files = []
-    #     ng_files = []
-    #     for num, file_list1 in enumerate(file_list):
-    #         dir_name, file_name = file_list1.rsplit("/", 1)
-    #         ok_ng, else_name = file_name.split("_", 1)
-    #         if ok_ng == ok_prefix:
-    #             ok_files.append(file_list1)
-    #         elif ok_ng == ng_prefix:
-    #             ng_files.append(file_list1)
-    #     print("len(file_list), ", len(file_list))
-    #     print("len(ok_files), ", len(ok_files))
-    #     print("len(ng_files), ", len(ng_files))
-    #     random.shuffle(ok_files)
-    #     ok_test = ok_files[:ok_test_num]
-    #     ok_train = ok_files[ok_test_num:]
-    #     return ok_train, ok_test, ng_files
-
     def convert_int(self, seg_np):
-        '''
-        0:other
-        1:sky
-        2:building
-        3:road
-        4:sidewalk
-        5:
-        '''
         # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 22] ->
         # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
         seg_np_mod = np.where(seg_np == 19, 16, seg_np)
@@ -134,7 +97,6 @@ class Make_dataset():
         seg_np_mod = np.where(seg_np_mod == 21, 18, seg_np_mod)
         seg_np_mod = np.where(seg_np_mod == 255, 13, seg_np_mod)
         return seg_np_mod
-
 
 
     def add_target_to_list(self, file_list, tar_num):
@@ -282,10 +244,10 @@ class Make_dataset():
         return syns_np, segs_np, depths_np, reals_np, real_segs_np
 
 
-    def make_random_z_with_norm(self, mean, stddev, data_num, unit_num):
-        norms = np.random.normal(mean, stddev, (data_num, unit_num))
-        # tars = np.zeros((data_num, 1), dtype=np.float32)
-        return norms
+    # def make_random_z_with_norm(self, mean, stddev, data_num, unit_num):
+    #     norms = np.random.normal(mean, stddev, (data_num, unit_num))
+    #     # tars = np.zeros((data_num, 1), dtype=np.float32)
+    #     return norms
 
 
     def make_target_1_0(self, value, data_num, width, height):
@@ -305,30 +267,6 @@ class Make_dataset():
             tar_oneHot = np.array([0., 1.], dtype=np.float32)
         return tar_oneHot
 
-
-    # def read_tfrecord(self, filename, img_h, img_w, img_c, class_num):
-    #     filename1 = tf.placeholder(tf.string)
-    #     filename_queue = tf.train.string_input_producer([filename])
-    #     reader = tf.TFRecordReader()
-    #     _, serialized_example = reader.read(filename_queue)
-    #
-    #     features = tf.parse_single_example(
-    #         serialized_example,
-    #         features={
-    #             'image': tf.FixedLenFeature([], tf.string),
-    #             'label': tf.FixedLenFeature([], tf.string)
-    #         })
-    #
-    #     image = tf.decode_raw(features['image'], tf.float32)
-    #     label = tf.decode_raw(features['label'], tf.float64)
-    #
-    #     sess_data = tf.Session()
-    #     sess_data.run(tf.local_variables_initializer())
-    #     image_, label_ = sess_data.run([image, label], feed_dict={filename1:filename})
-    #     print("image_.shape, ", image_.shape)
-    #     print("label_.shape, ", label_.shape)
-    #
-    #     # return image, label
 
 def check_SYNTHIA_RAND_CITYSCAPES(filename):
     example = next(tf.python_io.tf_record_iterator(filename))
@@ -359,9 +297,6 @@ def debug_specify_cannot_open_img(dir_name):
 
 if __name__ == '__main__':
     #debug
-    # FILE_NAME = '../../Efficient-GAN/sample_png_data/'
-    # FILE_NAME = '../../Efficient-GAN/tmp_debug/'
-
     img_width = 320
     img_height = 320
     img_width_be_crop_syn = 640
