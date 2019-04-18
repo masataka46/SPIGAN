@@ -180,56 +180,116 @@ def convert_np2pil(images_01):
     return list_images_PIL
     # 5->ng, 7->ok
 
-def make_output_img(img_batch_ng, img_batch_ok, x_z_x_ng, x_z_x_ok, epoch, log_file_name, out_img_dir):
-    (data_num, img1_h, img1_w, _) = img_batch_ng.shape
-    # img_batch_5_unn = np.tile(unnorm_img(img_batch_5), (1, 1, 3))
-    # img_batch_7_unn = np.tile(unnorm_img(img_batch_7), (1, 1, 3))
-    # x_z_x_5_unn = np.tile(unnorm_img(x_z_x_5), (1, 1, 3))
-    # x_z_x_7_unn = np.tile(unnorm_img(x_z_x_7), (1, 1, 3))
+def convert_uint8_2_pil(np_uint8):
+    list_images_PIL = []
+    for num, images_1 in enumerate(np_uint8):
+       
+        image_1_PIL = Image.fromarray(images_1)
+        list_images_PIL.append(image_1_PIL)
+    return list_images_PIL
 
-    img_batch_ng_01 = (img_batch_ng + 1.) / 2.
-    img_batch_ok_01 = (img_batch_ok + 1.) / 2.
-    x_z_x_ng_01 = (x_z_x_ng + 1.) / 2.
-    x_z_x_ok_01 = (x_z_x_ok + 1.) / 2.
+def class2color(np_arg):
+    # color_list = [
+    #     #       name                     id    trainId   category            catId     hasInstances   ignoreInEval   color
+    #     Label('road', 7, 0, 'ground', 1, False, False, (128, 64, 128)),
+    #     Label('sidewalk', 8, 1, 'ground', 1, False, False, (244, 35, 232)),
+    #     Label('building', 11, 2, 'construction', 2, False, False, (70, 70, 70)),
+    #     Label('wall', 12, 3, 'construction', 2, False, False, (102, 102, 156)),
+    #     Label('fence', 13, 4, 'construction', 2, False, False, (190, 153, 153)),
+    #     Label('pole', 17, 5, 'object', 3, False, False, (153, 153, 153)),
+    #     Label('traffic light', 19, 6, 'object', 3, False, False, (250, 170, 30)),
+    #     Label('traffic sign', 20, 7, 'object', 3, False, False, (220, 220, 0)),
+    #     Label('vegetation', 21, 8, 'nature', 4, False, False, (107, 142, 35)),
+    #     Label('terrain', 22, 9, 'nature', 4, False, False, (152, 251, 152)),
+    #     Label('sky', 23, 10, 'sky', 5, False, False, (70, 130, 180)),
+    #     Label('person', 24, 11, 'human', 6, True, False, (220, 20, 60)),
+    #     Label('rider', 25, 12, 'human', 6, True, False, (255, 0, 0)),
+    #     Label('car', 26, 13, 'vehicle', 7, True, False, (0, 0, 142)),
+    #     Label('truck', 27, 14, 'vehicle', 7, True, False, (0, 0, 70)),
+    #     Label('bus', 28, 15, 'vehicle', 7, True, False, (0, 60, 100)),
+    #     Label('train', 31, 16, 'vehicle', 7, True, False, (0, 80, 100)),
+    #     Label('motorcycle', 32, 17, 'vehicle', 7, True, False, (0, 0, 230)),
+    #     Label('bicycle', 33, 18, 'vehicle', 7, True, False, (119, 11, 32)),
+    # ]
+    # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 16, 18, 13]
+    color_list = [
+        [128, 64, 128],#0
+        [244, 35, 232],#1
+        [70, 70, 70],#2
+        [102, 102, 156],#3
+        [190, 153, 153],#4
+        [153, 153, 153],#5
+        [250, 170, 30],#6
+        [220, 220, 0],#7
+        [107, 142, 35],#8
+        [152, 251, 152],#9
+        [70, 130, 180],#10
+        [220, 20, 60],#11
+        [255, 0, 0],#12
+        [0, 0, 70],#14
+        [0, 60, 100],#15
+        [0, 0, 230],  # 17
+        [0, 80, 100],#16
+        [119, 11, 32],#18
+        [0, 0, 142]  # 13
+    ]
 
-    diff_ng = img_batch_ng_01 - x_z_x_ng_01
-    # diff_ng_r = (2.0 * np.maximum(diff_ng, 0.0)) - 1.0 #(0.0, 1.0) -> (-1.0, 1.0)
-    # diff_ng_b = (2.0 * np.abs(np.minimum(diff_ng, 0.0))) - 1.0 #(-1.0, 0.0) -> (1.0, 0.0) -> (1.0, -1.0)
-    # diff_ng_g = diff_ng_b * 0.0 - 1.0
-    # diff_ng_r_unnorm = unnorm_img(diff_ng_r)
-    # diff_ng_b_unnorm = unnorm_img(diff_ng_b)
-    # diff_ng_g_unnorm = unnorm_img(diff_ng_g)
-    # diff_ng_np = np.concatenate((diff_ng_r_unnorm, diff_ng_g_unnorm, diff_ng_b_unnorm), axis=3)
-    diff_ng_np = diff_ng / 2.
+    n, h, w = np_arg.shape
+    np_color_uint8 = np.zeros((n, h, w, 3), dtype=np.uint8)
+    for num_n, n1 in enumerate(np_arg):
+        for num_h, h1 in enumerate(n1):
+            for num_w, w1 in enumerate(h1):
+                np_color_uint8[num_n, num_h, num_w] = color_list[int(w1)]
+    return np_color_uint8
+
+
+def make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, log_file_name, out_img_dir):
+    data_num, img1_h, img1_w, cha = syns_np.shape
+    syns_np_uint8 = (syns_np * 255.).astype(np.uint8)
+    g_out_uint8 = (g_out_ * 255.).astype(np.uint8)
+
+    t_out_s_arg = np.argmax(t_out_s_, axis=3)
+    t_out_g_arg = np.argmax(t_out_g_, axis=3)
+    segs_np_arg = np.argmax(segs_np, axis=3)
     
-    diff_ok = img_batch_ok_01 - x_z_x_ok_01
-    # diff_ok_r = (2.0 * np.maximum(diff_ok, 0.0)) - 1.0 #(0.0, 1.0) -> (-1.0, 1.0)
-    # diff_ok_b = (2.0 * np.abs(np.minimum(diff_ok, 0.0))) - 1.0 #(-1.0, 0.0) -> (1.0, 0.0) -> (1.0, -1.0)
-    # diff_ok_g = diff_ok_b * 0.0 - 1.0
-    # diff_ok_r_unnorm = unnorm_img(diff_ok_r)
-    # diff_ok_b_unnorm = unnorm_img(diff_ok_b)
-    # diff_ok_g_unnorm = unnorm_img(diff_ok_g)
-    # diff_ok_np = np.concatenate((diff_ok_r_unnorm, diff_ok_g_unnorm, diff_ok_b_unnorm), axis=3)
-    diff_ok_np = diff_ok / 2.
+    t_out_s_uint8 = class2color(t_out_s_arg)
+    t_out_g_uint8 = class2color(t_out_g_arg)
+    segs_np_uint8 = class2color(segs_np_arg)
+    
+    syns_pil_list = convert_uint8_2_pil(syns_np_uint8)
+    g_out_pil_list = convert_uint8_2_pil(g_out_uint8)
+    t_out_s_pil_list = convert_uint8_2_pil(t_out_s_uint8)
+    t_out_g_pil_list = convert_uint8_2_pil(t_out_g_uint8)
+    segs_pil_list = convert_uint8_2_pil(segs_np_uint8)
 
-    img_batch_ng_PIL = convert_np2pil(img_batch_ng_01)
-    img_batch_ok_PIL = convert_np2pil(img_batch_ok_01)
-    x_z_x_ng_PIL = convert_np2pil(x_z_x_ng_01)
-    x_z_x_ok_PIL = convert_np2pil(x_z_x_ok_01)
-    diff_ng_PIL = convert_np2pil(diff_ng_np)
-    diff_ok_PIL = convert_np2pil(diff_ok_np)
 
-    wide_image_np = np.ones(((img1_h + 1) * data_num - 1, (img1_w + 1) * 6 - 1, 3), dtype=np.uint8) * 255
+    # img_batch_ng_01 = (img_batch_ng + 1.) / 2.
+    # img_batch_ok_01 = (img_batch_ok + 1.) / 2.
+    # x_z_x_ng_01 = (x_z_x_ng + 1.) / 2.
+    # x_z_x_ok_01 = (x_z_x_ok + 1.) / 2.
+    # 
+    # diff_ng = img_batch_ng_01 - x_z_x_ng_01
+    # diff_ng_np = diff_ng / 2.
+    # diff_ok = img_batch_ok_01 - x_z_x_ok_01
+    # diff_ok_np = diff_ok / 2.
+    # 
+    # img_batch_ng_PIL = convert_np2pil(img_batch_ng_01)
+    # img_batch_ok_PIL = convert_np2pil(img_batch_ok_01)
+    # x_z_x_ng_PIL = convert_np2pil(x_z_x_ng_01)
+    # x_z_x_ok_PIL = convert_np2pil(x_z_x_ok_01)
+    # diff_ng_PIL = convert_np2pil(diff_ng_np)
+    # diff_ok_PIL = convert_np2pil(diff_ok_np)
+
+    wide_image_np = np.ones(((img1_h + 1) * data_num - 1, (img1_w + 1) * 5 - 1, 3), dtype=np.uint8) * 255
     wide_image_PIL = Image.fromarray(wide_image_np)
-    for num, (ori_ng, ori_ok, xzx5, xzx7, diff5, diff7) in enumerate(zip(img_batch_ng_PIL, img_batch_ok_PIL ,x_z_x_ng_PIL, x_z_x_ok_PIL, diff_ng_PIL, diff_ok_PIL)):
-        wide_image_PIL.paste(ori_ng, (0, num * (img1_h + 1)))
-        wide_image_PIL.paste(xzx5, (img1_w + 1, num * (img1_h + 1)))
-        wide_image_PIL.paste(diff5, ((img1_w + 1) * 2, num * (img1_h + 1)))
-        wide_image_PIL.paste(ori_ok, ((img1_w + 1) * 3, num * (img1_h + 1)))
-        wide_image_PIL.paste(xzx7, ((img1_w + 1) * 4, num * (img1_h + 1)))
-        wide_image_PIL.paste(diff7, ((img1_w + 1) * 5, num * (img1_h + 1)))
+    for num, (syns1, g_out1, t_out_s1, t_out_g1, segs1) in enumerate(zip(syns_pil_list, g_out_pil_list, t_out_s_pil_list, t_out_g_pil_list, segs_pil_list)):
+        wide_image_PIL.paste(syns1, (0, num * (img1_h + 1)))
+        wide_image_PIL.paste(g_out1, (img1_w + 1, num * (img1_h + 1)))
+        wide_image_PIL.paste(t_out_s1, ((img1_w + 1) * 2, num * (img1_h + 1)))
+        wide_image_PIL.paste(t_out_g1, ((img1_w + 1) * 3, num * (img1_h + 1)))
+        wide_image_PIL.paste(segs1, ((img1_w + 1) * 4, num * (img1_h + 1)))
 
-    wide_image_PIL.save(out_img_dir + "/resultImage_"+ log_file_name + '_' + str(epoch) + ".png")
+    wide_image_PIL.save(out_img_dir + "/trainResultImage_"+ log_file_name + '_' + str(epoch) + ".png")
 #test
 
 def save_list_to_csv(list, filename):

@@ -434,8 +434,8 @@ class MainProcess(object):
                                                     feed_dict={self.x_s: syns_np, self.is_training: False, self.keep_prob: 1.0})
                 t_out_r_ = self.sess.run( self.t_out_r,
                                                     feed_dict={self.x_r_v: reals_np, self.is_training: False, self.keep_prob: 1.0})
+                Utility.make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, self.logfile_name, self.out_img_dir)
 
-                
 
             # save model
             if epoch % self.save_model_span == 0 and epoch != 0:
