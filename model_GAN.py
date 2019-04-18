@@ -419,6 +419,7 @@ class SPIGAN():
             print("vgg19 ", name, " is not exist")
         if self.vgg_trainable:
             var = tf.Variable(value, name=var_name)
+            print("warning, var is variable")
         else:
             var = tf.constant(value, dtype=tf.float32, name=var_name)
         self.var_dict[(name, idx)] = var

@@ -428,13 +428,16 @@ class MainProcess(object):
                     summary_writer.add_summary(summa_result[j], epoch)
             '''
             if epoch % self.output_img_span == 0:
-                print("output image")
+                print("output image now....")
                 syns_np, segs_np, depths_np, reals_np, real_segs_np = self.make_datasets.get_data_for_1_batch_for_output()
                 t_out_s_, t_out_g_, g_out_ = self.sess.run( [self.t_out_s, self.t_out_g, self.g_out],
                                                     feed_dict={self.x_s: syns_np, self.is_training: False, self.keep_prob: 1.0})
                 t_out_r_ = self.sess.run( self.t_out_r,
                                                     feed_dict={self.x_r_v: reals_np, self.is_training: False, self.keep_prob: 1.0})
                 Utility.make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, self.logfile_name, self.out_img_dir)
+
+            # if epoch % self.valid_span == 0:
+            #
 
 
             # save model
