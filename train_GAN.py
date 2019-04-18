@@ -365,7 +365,7 @@ if __name__ == '__main__':
                             help='path to vgg19 parameters')
         parser.add_argument('--valid_span', '-vs', type=int, default=1, help='validation span')
         parser.add_argument('--restore_model_name', '-rmn', type=str, default='', help='restored model name')
-        parser.add_argument('--save_model_span', '-ss', type=int, default=100, help='span of saving model')
+        parser.add_argument('--save_model_span', '-ss', type=int, default=1, help='span of saving model')
         parser.add_argument('--base_channel', '-bc', type=int, default=8, help='number of base channel')
         parser.add_argument('--output_img_span', '-ois', type=int, default=1, help='output image span')
 
