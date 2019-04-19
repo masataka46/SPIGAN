@@ -202,11 +202,18 @@ def class2color(np_arg):
                 np_color_uint8[num_n, num_h, num_w] = color_list[int(w1)]
     return np_color_uint8
 
+def float32_01_to_uint8(data_np):
+    data_255 = data_np * 255.
+    data_255 = np.maximum(0., data_255)
+    data_255 = np.minimum(255., data_255)
+    data_uint8 = data_255.astype(np.uint8)
+    return data_uint8
+
 
 def make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, log_file_name, out_img_dir):
     data_num, img1_h, img1_w, cha = syns_np.shape
-    syns_np_uint8 = (syns_np * 255.).astype(np.uint8)
-    g_out_uint8 = (g_out_ * 255.).astype(np.uint8)
+    syns_np_uint8 = float32_01_to_uint8(syns_np)
+    g_out_uint8 = float32_01_to_uint8(g_out_)
 
     t_out_s_arg = np.argmax(t_out_s_, axis=3)
     t_out_g_arg = np.argmax(t_out_g_, axis=3)
@@ -237,22 +244,12 @@ def make_output_img(syns_np, g_out_, t_out_s_, t_out_g_, segs_np, epoch, log_fil
 def make_output_img_for_real(real_syns_np, t_out_r_, segs_np, epoch, log_file_name, out_img_dir):
     data_num, img1_h, img1_w, cha = real_syns_np.shape
     syns_np_uint8 = (real_syns_np * 255.).astype(np.uint8)
-    # g_out_uint8 = (g_out_ * 255.).astype(np.uint8)
-
     t_out_r_arg = np.argmax(t_out_r_, axis=3)
-    # t_out_g_arg = np.argmax(t_out_g_, axis=3)
-    # segs_np_arg = np.argmax(segs_np, axis=3)
-
     t_out_r_uint8 = class2color(t_out_r_arg)
-    # t_out_g_uint8 = class2color(t_out_g_arg)
     segs_np_uint8 = class2color(segs_np)
-
     syns_pil_list = convert_uint8_2_pil(syns_np_uint8)
-    # g_out_pil_list = convert_uint8_2_pil(g_out_uint8)
     t_out_r_pil_list = convert_uint8_2_pil(t_out_r_uint8)
-    # t_out_g_pil_list = convert_uint8_2_pil(t_out_g_uint8)
     segs_pil_list = convert_uint8_2_pil(segs_np_uint8)
-
     wide_image_np = np.ones(((img1_h + 1) * data_num - 1, (img1_w + 1) * 3 - 1, 3), dtype=np.uint8) * 255
     wide_image_PIL = Image.fromarray(wide_image_np)
     for num, (syns1, t_out_r1, segs1) in enumerate(
