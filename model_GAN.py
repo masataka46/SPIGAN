@@ -3,7 +3,7 @@ import tensorflow as tf
 import math
 
 class SPIGAN():
-    def __init__(self, img_channel, anno_channel, seed, base_channel, keep_prob, path_to_vgg19, base_fc_node=1024,
+    def __init__(self, img_channel, anno_channel, seed, base_channel, keep_prob, path_to_vgg19,
                  base_channel_predictor=16):
         # self.NOISE_UNIT_NUM = noise_unit_num  # 200
         self.IMG_CHANNEL = img_channel  # 3
@@ -15,7 +15,7 @@ class SPIGAN():
         self.BASE_CHANNEL = base_channel  # 32
         self.BASE_CHANNEL_PRE = base_channel_predictor
         self.KEEP_PROB = keep_prob
-        self.BASE_FC_NODE = base_fc_node
+        # self.BASE_FC_NODE = base_fc_node
         self.VGG_MEAN = [103.939, 116.779, 123.68]
         self.vgg19_npy = np.load(path_to_vgg19, encoding='latin1').item()
         self.vgg_trainable = False

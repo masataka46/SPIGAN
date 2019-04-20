@@ -11,7 +11,7 @@ class MainProcess(object):
     def __init__(self, batch_size=8, log_file_name='log01', epoch=100,
                  syn_dir_name='', real_train_dir_name='', real_val_dir_name='', syn_seg_dir_name='', real_seg_dir_name='',
                  depth_dir_name='', valid_span=1, restored_model_name='', save_model_span=10, base_channel=16,
-                 path_to_vgg19='', output_img_span=1):
+                 path_to_vgg19='', output_img_span=1, base_channel_pre=16):
 
         self.batch_size = batch_size
         self.logfile_name = log_file_name
@@ -31,6 +31,7 @@ class MainProcess(object):
         self.anno_channel = 19
         self.depth_channel = 1
         self.base_channel = base_channel
+        self.base_channel_pre = base_channel_pre
         self.test_data_sample = 5 * 5
         self.l2_norm = 0.001
         self.keep_prob_rate = 0.5
@@ -80,7 +81,8 @@ class MainProcess(object):
         except:
             pass
 
-        self.model = Model(self.img_channel, self.anno_channel, self.seed, self.base_channel, self.keep_prob_rate, self.path_to_vgg19)
+        self.model = Model(self.img_channel, self.anno_channel, self.seed, self.base_channel, self.keep_prob_rate,
+                           self.path_to_vgg19, base_channel_predictor=self.base_channel_pre)
 
         '''
         syn_dir_name, real_train_dir_name, real_val_dir_name, syn_seg_dir_name, real_seg_dir_name, depth_dir_name,
@@ -146,11 +148,21 @@ class MainProcess(object):
             #perceptual loss
             self.conv1_2_s, self.conv2_2_s, self.conv3_2_s, self.conv4_2_s, self.conv5_2_s = self.model.vgg19(self.x_s)
             self.conv1_2_g, self.conv2_2_g, self.conv3_2_g, self.conv4_2_g, self.conv5_2_g = self.model.vgg19(self.g_out)
-            self.conv1_2 = tf.reduce_mean(tf.abs(self.conv1_2_s - self.conv1_2_g))
-            self.conv2_2 = tf.reduce_mean(tf.abs(self.conv2_2_s - self.conv2_2_g))
-            self.conv3_2 = tf.reduce_mean(tf.abs(self.conv3_2_s - self.conv3_2_g))
-            self.conv4_2 = tf.reduce_mean(tf.abs(self.conv4_2_s - self.conv4_2_g))
-            self.conv5_2 = tf.reduce_mean(tf.abs(self.conv5_2_s - self.conv5_2_g))
+            conv1_2_shape = self.conv1_2_s.get_shape().as_list()
+            conv2_2_shape = self.conv2_2_s.get_shape().as_list()
+            conv3_2_shape = self.conv3_2_s.get_shape().as_list()
+            conv4_2_shape = self.conv4_2_s.get_shape().as_list()
+            conv5_2_shape = self.conv5_2_s.get_shape().as_list()
+            conv1_2_lambda = tf.Variable(1./(conv1_2_shape[1] * conv1_2_shape[2] * conv1_2_shape[3]), dtype=tf.float32)
+            conv2_2_lambda = tf.Variable(1./(conv2_2_shape[1] * conv2_2_shape[2] * conv2_2_shape[3]), dtype=tf.float32)
+            conv3_2_lambda = tf.Variable(1./(conv3_2_shape[1] * conv3_2_shape[2] * conv3_2_shape[3]), dtype=tf.float32)
+            conv4_2_lambda = tf.Variable(1./(conv4_2_shape[1] * conv4_2_shape[2] * conv4_2_shape[3]), dtype=tf.float32)
+            conv5_2_lambda = tf.Variable(1./(conv5_2_shape[1] * conv5_2_shape[2] * conv5_2_shape[3]), dtype=tf.float32)
+            self.conv1_2 = tf.multiply(conv1_2_lambda, tf.reduce_sum(tf.abs(self.conv1_2_s - self.conv1_2_g)))
+            self.conv2_2 = tf.multiply(conv2_2_lambda, tf.reduce_sum(tf.abs(self.conv2_2_s - self.conv2_2_g)))
+            self.conv3_2 = tf.multiply(conv3_2_lambda, tf.reduce_sum(tf.abs(self.conv3_2_s - self.conv3_2_g)))
+            self.conv4_2 = tf.multiply(conv4_2_lambda, tf.reduce_sum(tf.abs(self.conv4_2_s - self.conv4_2_g)))
+            self.conv5_2 = tf.multiply(conv5_2_lambda, tf.reduce_sum(tf.abs(self.conv5_2_s - self.conv5_2_g)))
             self.loss_perc = self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2
 
             #total loss
@@ -195,7 +207,7 @@ class MainProcess(object):
             with tf.control_dependencies(update_ops):
                 self.train_dis = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_dis_total,
                                                                                 var_list=dis_vars, name='Adam_dis')
-                self.train_gen = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(self.loss_gen_total,
+                self.train_gen = tf.train.AdamOptimizer(learning_rate=0.00005, beta1=0.5).minimize(self.loss_gen_total,
                                                                                 var_list=gen_vars, name='Adam_gen')
                 self.train_tas = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_task_total,
                                                                                 var_list=tas_vars, name='Adam_tas')
@@ -366,7 +378,8 @@ if __name__ == '__main__':
         parser.add_argument('--valid_span', '-vs', type=int, default=1, help='validation span')
         parser.add_argument('--restore_model_name', '-rmn', type=str, default='', help='restored model name')
         parser.add_argument('--save_model_span', '-ss', type=int, default=1, help='span of saving model')
-        parser.add_argument('--base_channel', '-bc', type=int, default=8, help='number of base channel')
+        parser.add_argument('--base_channel', '-bc', type=int, default=16, help='number of base channel')
+        parser.add_argument('--base_channel_pre', '-bcp', type=int, default=16, help='number of base channel predictor')
         parser.add_argument('--output_img_span', '-ois', type=int, default=1, help='output image span')
 
         return parser.parse_args()
@@ -378,7 +391,8 @@ if __name__ == '__main__':
                                real_seg_dir_name=args.real_seg_dir_name, depth_dir_name=args.depth_dir_name,
                                valid_span=args.valid_span, restored_model_name=args.restore_model_name,
                                save_model_span=args.save_model_span, base_channel=args.base_channel,
-                               path_to_vgg19=args.path_to_vgg, output_img_span=args.output_img_span)
+                               path_to_vgg19=args.path_to_vgg, output_img_span=args.output_img_span,
+                               base_channel_pre=args.pase_channel_pre)
 
     main_process.train()
 
