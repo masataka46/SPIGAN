@@ -392,7 +392,7 @@ if __name__ == '__main__':
                                valid_span=args.valid_span, restored_model_name=args.restore_model_name,
                                save_model_span=args.save_model_span, base_channel=args.base_channel,
                                path_to_vgg19=args.path_to_vgg, output_img_span=args.output_img_span,
-                               base_channel_pre=args.pase_channel_pre)
+                               base_channel_pre=args.base_channel_pre)
 
     main_process.train()
 
