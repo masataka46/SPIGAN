@@ -158,11 +158,11 @@ class MainProcess(object):
             conv3_2_lambda = tf.Variable(1./(conv3_2_shape[1] * conv3_2_shape[2] * conv3_2_shape[3]), dtype=tf.float32)
             conv4_2_lambda = tf.Variable(1./(conv4_2_shape[1] * conv4_2_shape[2] * conv4_2_shape[3]), dtype=tf.float32)
             conv5_2_lambda = tf.Variable(1./(conv5_2_shape[1] * conv5_2_shape[2] * conv5_2_shape[3]), dtype=tf.float32)
-            self.conv1_2 = tf.multiply(conv1_2_lambda, tf.reduce_sum(tf.abs(self.conv1_2_s - self.conv1_2_g)))
-            self.conv2_2 = tf.multiply(conv2_2_lambda, tf.reduce_sum(tf.abs(self.conv2_2_s - self.conv2_2_g)))
-            self.conv3_2 = tf.multiply(conv3_2_lambda, tf.reduce_sum(tf.abs(self.conv3_2_s - self.conv3_2_g)))
-            self.conv4_2 = tf.multiply(conv4_2_lambda, tf.reduce_sum(tf.abs(self.conv4_2_s - self.conv4_2_g)))
-            self.conv5_2 = tf.multiply(conv5_2_lambda, tf.reduce_sum(tf.abs(self.conv5_2_s - self.conv5_2_g)))
+            self.conv1_2 = tf.reduce_mean(conv1_2_lambda * tf.reduce_sum(tf.abs(self.conv1_2_s - self.conv1_2_g), axis=[1,2,3]))
+            self.conv2_2 = tf.reduce_mean(conv2_2_lambda * tf.reduce_sum(tf.abs(self.conv2_2_s - self.conv2_2_g), axis=[1,2,3]))
+            self.conv3_2 = tf.reduce_mean(conv3_2_lambda * tf.reduce_sum(tf.abs(self.conv3_2_s - self.conv3_2_g), axis=[1,2,3]))
+            self.conv4_2 = tf.reduce_mean(conv4_2_lambda * tf.reduce_sum(tf.abs(self.conv4_2_s - self.conv4_2_g), axis=[1,2,3]))
+            self.conv5_2 = tf.reduce_mean(conv5_2_lambda * tf.reduce_sum(tf.abs(self.conv5_2_s - self.conv5_2_g), axis=[1,2,3]))
             self.loss_perc = self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2
 
             #total loss
