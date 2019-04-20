@@ -146,8 +146,8 @@ class MainProcess(object):
             self.loss_PI = self.loss_PI_s + self.loss_PI_g
 
             #perceptual loss
-            self.conv1_2_s, self.conv2_2_s, self.conv3_2_s, self.conv4_2_s, self.conv5_2_s = self.model.vgg19(self.x_s)
-            self.conv1_2_g, self.conv2_2_g, self.conv3_2_g, self.conv4_2_g, self.conv5_2_g = self.model.vgg19(self.g_out)
+            self.conv1_2_s, self.conv2_2_s, self.conv3_2_s, self.conv4_2_s, self.conv5_2_s = self.model.vgg19(self.x_s, reuse=False)
+            self.conv1_2_g, self.conv2_2_g, self.conv3_2_g, self.conv4_2_g, self.conv5_2_g = self.model.vgg19(self.g_out, reuse=True)
             conv1_2_shape = self.conv1_2_s.get_shape().as_list()
             conv2_2_shape = self.conv2_2_s.get_shape().as_list()
             conv3_2_shape = self.conv3_2_s.get_shape().as_list()
