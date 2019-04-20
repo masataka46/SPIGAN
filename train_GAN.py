@@ -314,7 +314,7 @@ class MainProcess(object):
                 epoch, sum_loss_gen_total / len_data_syn, sum_loss_dis_total / len_data_syn,
                 sum_loss_task_total / len_data_syn, sum_loss_PI_total / len_data_syn))
             print("Discriminator Real Loss = {:.4f}, Discriminator Fake Loss = {:.4f}, Discriminator Fake Loss for G = {:.4f}".format(
-                sum_loss_dis_r_D / len_data_syn, sum_loss_dis_r_D / len_data_syn, sum_loss_dis_f_G / len_data_syn))
+                sum_loss_dis_r_D / len_data_syn, sum_loss_dis_f_D / len_data_syn, sum_loss_dis_f_G / len_data_syn))
             print("Task Predictor Loss for Synthesis = {:.4f}, Task Predictor Loss for Generated = {:.4f}".format(
                 sum_loss_task_s / len_data_syn, sum_loss_task_g / len_data_syn))
             print("Privileged information Loss for Synthesis = {:.4f}, Privileged information Loss for Generated = {:.4f}".format(
