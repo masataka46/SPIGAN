@@ -163,7 +163,8 @@ class MainProcess(object):
             self.conv3_2 = tf.reduce_mean(conv3_2_lambda * tf.reduce_sum(tf.abs(self.conv3_2_s - self.conv3_2_g), axis=[1,2,3]))
             self.conv4_2 = tf.reduce_mean(conv4_2_lambda * tf.reduce_sum(tf.abs(self.conv4_2_s - self.conv4_2_g), axis=[1,2,3]))
             self.conv5_2 = tf.reduce_mean(conv5_2_lambda * tf.reduce_sum(tf.abs(self.conv5_2_s - self.conv5_2_g), axis=[1,2,3]))
-            self.loss_perc = self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2
+            # self.loss_perc = self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2
+            self.loss_perc = (self.conv1_2 + self.conv2_2 + self.conv3_2 + self.conv4_2 + self.conv5_2)/255.
 
             #total loss
             self.loss_dis_total = self.loss_alpha * self.loss_adv
