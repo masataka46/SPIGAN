@@ -201,18 +201,17 @@ class MainProcess(object):
             dis_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
             tas_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="task_predictor")
             pri_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="privileged_network")
-
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         with tf.name_scope("train"):
             with tf.control_dependencies(update_ops):
-                self.train_dis = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_dis_total,
+                self.train_dis = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(self.loss_dis_total,
                                                                                 var_list=dis_vars, name='Adam_dis')
-                self.train_gen = tf.train.AdamOptimizer(learning_rate=0.00005, beta1=0.5).minimize(self.loss_gen_total,
+                self.train_gen = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5).minimize(self.loss_gen_total,
                                                                                 var_list=gen_vars, name='Adam_gen')
-                self.train_tas = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_task_total,
+                self.train_tas = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(self.loss_task_total,
                                                                                 var_list=tas_vars, name='Adam_tas')
-                self.train_pri = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.5).minimize(self.loss_PI_total,
+                self.train_pri = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(self.loss_PI_total,
                                                                                 var_list=pri_vars, name='Adam_pri')
 
         self.sess = tf.Session()
