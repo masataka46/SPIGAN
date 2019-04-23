@@ -24,14 +24,14 @@ I confirmed operation only with..
 ### result for training data  
 This is the output from the task predictor of training data after 20 epochs.  
 
-![trainResultImage_19042102_bc16_bcp16_19](https://user-images.githubusercontent.com/15444879/56515460-ebe76b80-6572-11e9-88d9-7d223a9eef64.png)
+![trainResultImage_19042201_bc32_bcp32_19](https://user-images.githubusercontent.com/15444879/56620010-6f33ba80-6662-11e9-96ef-c4d62ad79c73.png)  
 
 From left to right, synthesis image, adapted image (output from generator), output from task predictor of synthesis image, output from task predictor of adapted image, ground truth.   
 
 ### result for test CityScape data  
 This is the output from the task predictor of test data after 20 epochs.  
 
-![RealResultImage_19042102_bc16_bcp16_19](https://user-images.githubusercontent.com/15444879/56515448-e25e0380-6572-11e9-8bc4-0d737b70aa7e.png)
+![RealResultImage_19042201_bc32_bcp32_19](https://user-images.githubusercontent.com/15444879/56620035-7ce94000-6662-11e9-8a5f-f1e6f5c76994.png)  
 
 From left to right, test CityScape image, output from task predictor of it, ground truth.   
 
